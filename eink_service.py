@@ -63,9 +63,29 @@ DEVICE_TOKEN = os.getenv('EINK_DEVICE_TOKEN', '')
 if not DEVICE_TOKEN and CONFIG_FILE.exists():
     try:
         import json
-        with open(CONFIG_FILE, 'r') as f:
-            config = json.load(f)
-            DEVICE_TOKEN = config.get('device_token', '')
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                DEVICE_TOKEN = config.get('device_token', '')
+        except PermissionError:
+            # If permission denied, try to fix or use environment variable
+            import os
+            import stat
+            try:
+                # Try to make readable
+                current_uid = os.getuid()
+                file_stat = os.stat(CONFIG_FILE)
+                # If file is owned by different user, we can't fix it here
+                # But we can try to read it anyway (might work if in same group)
+                print(f"Warning: Config file permission issue. File owned by UID {file_stat.st_uid}, current UID {current_uid}")
+                print("Trying to read anyway...")
+                with open(CONFIG_FILE, 'r') as f:
+                    config = json.load(f)
+                    DEVICE_TOKEN = config.get('device_token', '')
+            except Exception as e:
+                print(f"Error reading config file: {e}")
+                print("Please fix file permissions: chmod 640 device_config.json")
+                pass
     except (json.JSONDecodeError, KeyError):
         pass  # Continue to check environment variable
 

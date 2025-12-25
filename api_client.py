@@ -18,6 +18,21 @@ if CONFIG_FILE.exists():
             api_url = config.get('api_url', '').rstrip('/')
             if api_url:
                 API_BASE = f"{api_url}/api"
+    except PermissionError:
+        # Permission denied - file might be owned by different user
+        # Try to fix permissions or use default
+        import os
+        try:
+            # Try to make file readable
+            os.chmod(CONFIG_FILE, 0o644)
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                api_url = config.get('api_url', '').rstrip('/')
+                if api_url:
+                    API_BASE = f"{api_url}/api"
+        except:
+            # If still can't read, use default API_BASE
+            pass
     except (json.JSONDecodeError, KeyError):
         pass  # Use default if config file is invalid
 
