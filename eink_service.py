@@ -243,6 +243,23 @@ def main():
     
     # Initialize e-ink display
     try:
+        # Check for SPI devices before initializing
+        spi_devices = ['/dev/spidev0.0', '/dev/spidev0.1']
+        spi_found = False
+        for spi_dev in spi_devices:
+            if Path(spi_dev).exists():
+                spi_found = True
+                print(f"Found SPI device: {spi_dev}")
+                break
+        
+        if not spi_found:
+            print("Warning: SPI devices not found. Checking if SPI is enabled...")
+            print("Troubleshooting:")
+            print("  1. Enable SPI: sudo raspi-config -> Interface Options -> SPI -> Enable")
+            print("  2. Check SPI modules: lsmod | grep spi")
+            print("  3. Reboot after enabling SPI")
+            print("  4. Check device files: ls -l /dev/spi*")
+        
         epd = epd7in5_V2.EPD()
         if USE_4GRAY_MODE:
             epd.init_4Gray()
@@ -251,8 +268,43 @@ def main():
             epd.init()
             print("Display initialized")
         epd.Clear()
+        print("Display cleared and ready")
+    except FileNotFoundError as e:
+        print(f"Failed to initialize display: {e}")
+        print("\nTroubleshooting:")
+        print("  1. Check if SPI is enabled:")
+        print("     sudo raspi-config -> Interface Options -> SPI -> Enable")
+        print("  2. Check SPI device files:")
+        print("     ls -l /dev/spi*")
+        print("  3. Check if user is in spi group:")
+        print("     groups")
+        print("     sudo usermod -a -G spi,gpio $USER")
+        print("  4. Check SPI kernel modules:")
+        print("     lsmod | grep spi")
+        print("  5. Reboot after making changes")
+        sys.exit(1)
+    except PermissionError as e:
+        print(f"Failed to initialize display: Permission denied")
+        print(f"Error: {e}")
+        print("\nTroubleshooting:")
+        print("  1. Add user to spi and gpio groups:")
+        print("     sudo usermod -a -G spi,gpio npnf")
+        print("  2. Check current groups:")
+        print("     groups")
+        print("  3. You may need to log out and log back in")
+        print("  4. Or restart the service after adding groups")
+        sys.exit(1)
     except Exception as e:
         print(f"Failed to initialize display: {e}")
+        print(f"Error type: {type(e).__name__}")
+        import traceback
+        print("\nFull error traceback:")
+        traceback.print_exc()
+        print("\nTroubleshooting:")
+        print("  1. Verify e-ink display is properly connected")
+        print("  2. Check SPI is enabled: sudo raspi-config")
+        print("  3. Check Waveshare library is installed correctly")
+        print("  4. Try running as root to test: sudo python3 eink_service.py")
         sys.exit(1)
     
     # Initial update
