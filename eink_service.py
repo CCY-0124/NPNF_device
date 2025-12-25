@@ -18,13 +18,41 @@ except ImportError:
     print("Error: api_client not found")
     sys.exit(1)
 
-# Import e-ink library
-try:
-    sys.path.insert(0, '/home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib')
-    from waveshare_epd import epd7in5_V2
-    EINK_AVAILABLE = True
-except ImportError:
-    print("Error: e-ink library not found")
+# Import e-ink library with dynamic path detection
+EINK_AVAILABLE = False
+epd7in5_V2 = None
+
+# Try multiple possible paths for Waveshare library
+possible_paths = [
+    Path.home() / 'e-Paper' / 'RaspberryPi_JetsonNano' / 'python' / 'lib',
+    Path('/home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib'),
+    Path('/home/npnf/e-Paper/RaspberryPi_JetsonNano/python/lib'),
+    Path('/usr/local/lib/python3/dist-packages'),
+    Path('/usr/lib/python3/dist-packages'),
+]
+
+for lib_path in possible_paths:
+    if lib_path.exists():
+        try:
+            sys.path.insert(0, str(lib_path))
+            from waveshare_epd import epd7in5_V2
+            EINK_AVAILABLE = True
+            print(f"Found Waveshare library at: {lib_path}")
+            break
+        except ImportError:
+            continue
+
+if not EINK_AVAILABLE:
+    print("Error: e-ink library (waveshare_epd) not found")
+    print("Tried paths:")
+    for path in possible_paths:
+        exists = "✓" if path.exists() else "✗"
+        print(f"  {exists} {path}")
+    print("\nPlease install Waveshare library:")
+    print("  cd ~")
+    print("  git clone https://github.com/waveshare/e-Paper.git")
+    print("  cd e-Paper/RaspberryPi_JetsonNano/python")
+    print("  sudo python3 setup.py install")
     sys.exit(1)
 
 # Configuration - try to load from config file first, then environment variable

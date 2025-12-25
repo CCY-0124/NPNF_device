@@ -131,13 +131,52 @@ network={{
     print(f"\nWiFi configuration added successfully!")
     print("Restarting WiFi connection...")
     
-    # Restart WiFi
+    # Restart WiFi using multiple methods for reliability
+    print("Restarting WiFi connection...")
+    success = False
+    
+    # Method 1: wpa_cli reconfigure (most common)
     try:
-        subprocess.run(['wpa_cli', '-i', 'wlan0', 'reconfigure'], check=True, timeout=10)
-        print("WiFi restarted. Please wait a few seconds for connection...")
+        result = subprocess.run(['wpa_cli', '-i', 'wlan0', 'reconfigure'], 
+                              capture_output=True, timeout=10)
+        if result.returncode == 0:
+            print("   ✓ WiFi restarted using wpa_cli")
+            success = True
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-        print("Note: Could not automatically restart WiFi.")
-        print("You may need to reboot: sudo reboot")
+        pass
+    
+    # Method 2: systemctl restart wpa_supplicant
+    if not success:
+        try:
+            result = subprocess.run(['systemctl', 'restart', 'wpa_supplicant'], 
+                                  capture_output=True, timeout=10)
+            if result.returncode == 0:
+                print("   ✓ WiFi restarted using systemctl")
+                success = True
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+    
+    # Method 3: ifdown/ifup (fallback)
+    if not success:
+        try:
+            subprocess.run(['ifdown', 'wlan0'], capture_output=True, timeout=5)
+            time.sleep(1)
+            result = subprocess.run(['ifup', 'wlan0'], capture_output=True, timeout=10)
+            if result.returncode == 0:
+                print("   ✓ WiFi restarted using ifdown/ifup")
+                success = True
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+    
+    if success:
+        print("   Please wait a few seconds for connection...")
+        print("   You can check connection with: ip addr show wlan0")
+    else:
+        print("   ⚠ Could not automatically restart WiFi using any method.")
+        print("   Troubleshooting steps:")
+        print("     1. Check WiFi status: ip addr show wlan0")
+        print("     2. Manually restart: sudo systemctl restart wpa_supplicant")
+        print("     3. Or reboot: sudo reboot")
     
     return True
 
@@ -311,46 +350,126 @@ def install_dependencies():
         print(f"   ✗ Error checking/installing Python: {e}")
         return False
     
-    # Install pip packages
+    # Install pip packages - try apt first (more stable), then pip as fallback
     print("\n2. Installing Python packages...")
+    packages_installed = False
+    
+    # Try apt first (preferred method for system packages)
+    print("   Trying apt packages first (recommended)...")
     try:
-        subprocess.run(['pip3', 'install', '--user', 'Pillow', 'requests'], check=True, timeout=300)
-        print("   ✓ Python packages installed")
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-        print(f"   ✗ Error installing Python packages: {e}")
+        result = subprocess.run(['sudo', 'apt', 'install', '-y', 'python3-pil', 'python3-requests'], 
+                              capture_output=True, timeout=300)
+        if result.returncode == 0:
+            print("   ✓ Python packages installed via apt (Pillow, requests)")
+            packages_installed = True
+        else:
+            print("   ⚠ apt installation failed, trying pip...")
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+        print(f"   ⚠ apt installation error: {e}")
+        print("   Trying pip as fallback...")
+    
+    # Fallback to pip if apt failed
+    if not packages_installed:
+        try:
+            # Try with --user first
+            result = subprocess.run(['pip3', 'install', '--user', 'Pillow', 'requests'], 
+                                  capture_output=True, timeout=300)
+            if result.returncode == 0:
+                print("   ✓ Python packages installed via pip (user install)")
+                packages_installed = True
+            else:
+                # Try with --break-system-packages (for newer Debian/Raspberry Pi OS)
+                print("   Trying pip with --break-system-packages flag...")
+                result = subprocess.run(['pip3', 'install', '--break-system-packages', 'Pillow', 'requests'], 
+                                      capture_output=True, timeout=300)
+                if result.returncode == 0:
+                    print("   ✓ Python packages installed via pip")
+                    packages_installed = True
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            print(f"   ✗ Error installing Python packages via pip: {e}")
+    
+    if not packages_installed:
+        print("   ✗ Failed to install Python packages")
+        print("   Troubleshooting:")
+        print("     - Try manually: sudo apt install -y python3-pil python3-requests")
+        print("     - Or: pip3 install --user Pillow requests")
+        print("     - Then re-run setup.py")
         return False
     
-    # Check/install Waveshare library
+    # Check/install Waveshare library with improved error handling
     print("\n3. Checking Waveshare e-Paper library...")
     waveshare_path = Path.home() / 'e-Paper'
+    
     if waveshare_path.exists():
-        print("   ✓ Waveshare library found")
+        print(f"   ✓ Waveshare library found at: {waveshare_path}")
         response = input("   Update existing library? (y/n): ").lower()
         if response == 'y':
             try:
-                subprocess.run(['git', '-C', str(waveshare_path), 'pull'], check=True, timeout=60)
-                print("   ✓ Library updated")
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                print("   ⚠ Could not update library (continuing anyway)")
+                print("   Updating library from GitHub...")
+                result = subprocess.run(['git', '-C', str(waveshare_path), 'pull'], 
+                                      capture_output=True, text=True, timeout=60)
+                if result.returncode == 0:
+                    print("   ✓ Library updated successfully")
+                else:
+                    print("   ⚠ Could not update library (git pull failed)")
+                    print(f"   Output: {result.stderr[:200]}")
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                print(f"   ⚠ Could not update library: {e}")
+                print("   Continuing with existing version...")
     else:
         print("   Installing Waveshare e-Paper library...")
+        print("   This may take a few minutes...")
         try:
-            subprocess.run(['git', 'clone', 'https://github.com/waveshare/e-Paper.git', str(waveshare_path)], check=True, timeout=300)
-            print("   ✓ Library cloned")
+            result = subprocess.run(['git', 'clone', 'https://github.com/waveshare/e-Paper.git', str(waveshare_path)], 
+                                  capture_output=True, text=True, timeout=300)
+            if result.returncode == 0:
+                print("   ✓ Library cloned successfully")
+            else:
+                print(f"   ✗ Error cloning library: {result.stderr}")
+                print("   Troubleshooting:")
+                print("     - Check internet connection")
+                print("     - Verify git is installed: git --version")
+                print("     - Try manually: cd ~ && git clone https://github.com/waveshare/e-Paper.git")
+                return False
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"   ✗ Error cloning library: {e}")
+            print("   Troubleshooting:")
+            print("     - Check internet connection")
+            print("     - Verify git is installed")
             return False
     
     # Install Waveshare library
     waveshare_python = waveshare_path / 'RaspberryPi_JetsonNano' / 'python'
-    if waveshare_python.exists():
-        print("\n4. Installing Waveshare library...")
-        try:
-            subprocess.run(['sudo', 'python3', 'setup.py', 'install'], cwd=str(waveshare_python), check=True, timeout=300)
-            print("   ✓ Waveshare library installed")
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            print(f"   ✗ Error installing library: {e}")
+    if not waveshare_python.exists():
+        print(f"   ✗ Waveshare Python directory not found: {waveshare_python}")
+        print("   Troubleshooting:")
+        print("     - Verify library was cloned correctly")
+        print("     - Check if directory structure is correct")
+        return False
+    
+    print("\n4. Installing Waveshare library...")
+    print("   This may take a few minutes...")
+    try:
+        result = subprocess.run(['sudo', 'python3', 'setup.py', 'install'], 
+                              cwd=str(waveshare_python), 
+                              capture_output=True, text=True, 
+                              timeout=300)
+        if result.returncode == 0:
+            print("   ✓ Waveshare library installed successfully")
+        else:
+            print(f"   ✗ Error installing library")
+            print(f"   Error output: {result.stderr[:300]}")
+            print("   Troubleshooting:")
+            print("     - Check if you have sudo privileges")
+            print("     - Verify Python 3 is installed: python3 --version")
+            print("     - Try manually: cd ~/e-Paper/RaspberryPi_JetsonNano/python && sudo python3 setup.py install")
             return False
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        print(f"   ✗ Error installing library: {e}")
+        print("   Troubleshooting:")
+        print("     - Check if you have sudo privileges")
+        print("     - Verify the library directory exists")
+        return False
     
     print("\n✓ All dependencies installed successfully!")
     return True
@@ -452,11 +571,16 @@ WantedBy=multi-user.target
                 subprocess.run(['systemctl', 'status', 'eink.service', '--no-pager'], timeout=10)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             print(f"✗ Error installing service: {e}")
-            print(f"\nYou can manually install the service:")
-            print(f"  sudo cp {service_file_path} /etc/systemd/system/")
-            print(f"  sudo systemctl daemon-reload")
-            print(f"  sudo systemctl enable eink.service")
-            print(f"  sudo systemctl start eink.service")
+            print(f"\nTroubleshooting:")
+            print(f"  1. Verify service file exists: ls -l {service_file_path}")
+            print(f"  2. Check file permissions")
+            print(f"  3. Manually install the service:")
+            print(f"     sudo cp {service_file_path} /etc/systemd/system/")
+            print(f"     sudo systemctl daemon-reload")
+            print(f"     sudo systemctl enable eink.service")
+            print(f"     sudo systemctl start eink.service")
+            print(f"  4. Check service status: sudo systemctl status eink.service")
+            print(f"  5. View service logs: sudo journalctl -u eink.service -n 50")
             return False
     else:
         print(f"\nTo install the service, run:")
@@ -504,12 +628,18 @@ def test_connection():
             print("   ✓ Internet connection OK")
         else:
             print("   ✗ No internet connection")
-            print("   Please check your WiFi connection.")
+            print("   Troubleshooting:")
+            print("     - Check WiFi connection: ip addr show wlan0")
+            print("     - Test connectivity: ping 8.8.8.8")
+            print("     - Check WiFi status: sudo systemctl status wpa_supplicant")
+            print("     - Restart WiFi: sudo systemctl restart wpa_supplicant")
             return False
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         print("   ⚠ Could not test internet (ping not available)")
+        print(f"   Error: {e}")
+        print("   Continuing anyway - will test API connection directly...")
     
-    # Test API connection
+    # Test API connection with improved error handling
     print("\n2. Testing API connection...")
     try:
         import urllib.request
@@ -523,37 +653,94 @@ def test_connection():
         
         test_url = f"{api_url}/api/calendar-shares/devices/view/{device_token}?startDate={start_date}&endDate={end_date}"
         
+        print(f"   Testing URL: {test_url[:80]}...")
+        print(f"   Token: {device_token[:16]}...{device_token[-8:]}")
+        
         req = urllib.request.Request(test_url)
         req.add_header('User-Agent', 'RaspberryPi-Setup/1.0')
+        req.add_header('Accept', 'application/json')
         
-        with urllib.request.urlopen(req, timeout=10) as response:
-            if response.status == 200:
-                print("   ✓ API connection successful!")
-                print("   ✓ Device token is valid!")
-                return True
+        with urllib.request.urlopen(req, timeout=15) as response:
+            status = response.status
+            if status == 200:
+                try:
+                    data = response.read().decode('utf-8')
+                    print("   ✓ API connection successful!")
+                    print("   ✓ Device token is valid!")
+                    print(f"   Response length: {len(data)} bytes")
+                    return True
+                except Exception as e:
+                    print(f"   ⚠ Got 200 but couldn't parse response: {e}")
+                    print("   ✓ Device token appears valid (got 200 response)")
+                    return True
             else:
-                print(f"   ✗ API returned status: {response.status}")
+                print(f"   ✗ API returned status: {status}")
+                print(f"   Response: {response.read().decode('utf-8')[:200]}")
                 return False
+                
     except urllib.error.HTTPError as e:
+        error_body = ""
+        try:
+            error_body = e.read().decode('utf-8')[:200]
+        except:
+            pass
+        
         if e.code == 400:
-            print("   ⚠ API connection OK, but request format issue (this is normal)")
-            print("   ✓ Device token format appears correct")
+            print("   ⚠ API connection OK, but request format issue (400 Bad Request)")
+            print("   This might be normal - token format appears correct")
+            print(f"   Response: {error_body}")
             return True
-        elif e.code == 401 or e.code == 403:
-            print(f"   ✗ Authentication failed (status {e.code})")
-            print("   Please check your device token.")
+        elif e.code == 401:
+            print(f"   ✗ Authentication failed (401 Unauthorized)")
+            print("   Troubleshooting:")
+            print("     - Check if device token is correct")
+            print("     - Token might be expired or invalid")
+            print("     - Get a new token from the app")
+            print(f"   Response: {error_body}")
+            return False
+        elif e.code == 403:
+            print(f"   ✗ Access forbidden (403 Forbidden)")
+            print("   Troubleshooting:")
+            print("     - Device token might not have proper permissions")
+            print("     - Check device configuration in the app")
+            print(f"   Response: {error_body}")
+            return False
+        elif e.code == 404:
+            print(f"   ✗ API endpoint not found (404 Not Found)")
+            print("   Troubleshooting:")
+            print("     - Check if API URL is correct")
+            print("     - Verify API endpoint path: /api/calendar-shares/devices/view/{token}")
+            print("     - API might not be deployed or route doesn't exist")
+            print(f"   Response: {error_body}")
+            print("   Try testing in browser or check API documentation")
+            return False
+        elif e.code == 500:
+            print(f"   ✗ Server error (500 Internal Server Error)")
+            print("   This is a server-side issue, not a token problem")
+            print(f"   Response: {error_body}")
             return False
         else:
             print(f"   ✗ API error: {e.code}")
+            print(f"   Response: {error_body}")
             return False
+            
     except urllib.error.URLError as e:
         print(f"   ✗ Could not connect to API: {e.reason}")
-        print("   Please check:")
-        print("     - Your internet connection")
-        print("     - The API URL is correct")
+        print("   Troubleshooting:")
+        print("     - Check internet connection: ping 8.8.8.8")
+        print("     - Verify API URL is accessible: curl " + api_url)
+        print("     - Check firewall settings")
+        print("     - DNS resolution might be failing")
         return False
+        
     except Exception as e:
-        print(f"   ✗ Error: {str(e)}")
+        print(f"   ✗ Unexpected error: {str(e)}")
+        print("   Troubleshooting:")
+        print("     - Check Python urllib is working")
+        print("     - Verify network connectivity")
+        import traceback
+        print("   Full error:")
+        traceback.print_exc()
         return False
 
 def main():
@@ -604,16 +791,54 @@ def main():
     
     print("Your Raspberry Pi is now configured!")
     print(f"\nConfiguration saved to: {CONFIG_FILE}")
+    
+    # Check what was completed
+    completed_steps = []
+    if wifi_success:
+        completed_steps.append("WiFi configuration")
+    if token_success:
+        completed_steps.append("Device token setup")
+    
+    print("\nCompleted steps:")
+    for step in completed_steps:
+        print(f"  ✓ {step}")
+    
     print("\nNext steps:")
-    print("  1. If you configured WiFi, you may need to reboot:")
-    print("     sudo reboot")
-    print("  2. If you set up the systemd service, it will start automatically on boot")
+    if wifi_success:
+        print("  1. WiFi configured - you may need to reboot for changes to take effect:")
+        print("     sudo reboot")
+    
+    # Check if service was set up
+    service_file = SCRIPT_DIR / 'eink.service'
+    if service_file.exists():
+        print("  2. Systemd service file created")
+        if os.geteuid() == 0:
+            print("     Service is installed and will start automatically on boot")
+        else:
+            print("     To install service, run:")
+            print(f"       sudo cp {service_file} /etc/systemd/system/")
+            print("       sudo systemctl daemon-reload")
+            print("       sudo systemctl enable eink.service")
+            print("       sudo systemctl start eink.service")
+    
     print("  3. To manually test the display, run:")
-    print(f"     python3 {SCRIPT_DIR}/eink_service.py")
+    print(f"     cd {SCRIPT_DIR}")
+    print(f"     python3 eink_service.py")
+    
     print("\nUseful commands:")
-    print("  View service logs:    sudo journalctl -u eink.service -f")
-    print("  Check service status:   sudo systemctl status eink.service")
-    print("  Restart service:       sudo systemctl restart eink.service")
+    print("  View service logs:      sudo journalctl -u eink.service -f")
+    print("  Check service status:      sudo systemctl status eink.service")
+    print("  Restart service:         sudo systemctl restart eink.service")
+    print("  Stop service:            sudo systemctl stop eink.service")
+    print("  Check configuration:    cat device_config.json")
+    
+    print("\nTroubleshooting:")
+    print("  If service fails to start:")
+    print("    sudo journalctl -u eink.service -n 50")
+    print("  If display doesn't update:")
+    print("    Check API connection and device token")
+    print("    Verify Waveshare library is installed")
+    
     print("\nFor more information, see: SETUP_RASPBERRY_PI.md")
     
     print("\n" + "=" * 60)
@@ -627,4 +852,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n\nUnexpected error: {str(e)}")
         sys.exit(1)
+
 

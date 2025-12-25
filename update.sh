@@ -115,3 +115,5 @@ echo "  Check status:     sudo systemctl status eink.service"
 echo "  Restart service:  sudo systemctl restart eink.service"
 echo
 
+
+
