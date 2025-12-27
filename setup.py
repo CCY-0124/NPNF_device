@@ -589,7 +589,8 @@ User={os.getenv('SUDO_USER', os.getenv('USER', 'pi'))}
 WorkingDirectory={working_dir}
 Environment="EINK_DEVICE_TOKEN={device_token}"
 Environment="EINK_POLL_INTERVAL=60"
-ExecStart=/usr/bin/python3 {working_dir}/eink_service.py
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/usr/bin/python3 -u {working_dir}/eink_service.py
 Restart=always
 RestartSec=10
 StandardOutput=journal

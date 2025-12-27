@@ -250,12 +250,24 @@ def render_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Image:
             if end_slot < start_slot:
                 end_slot = len(time_slots)
             
+            # Ensure end_slot is at least start_slot + 1 to avoid invalid rectangle
+            if end_slot <= start_slot:
+                end_slot = start_slot + 1
+            
             start_y = int(table_start_y + HEADER_HEIGHT + start_slot * row_height)
             end_y = int(table_start_y + HEADER_HEIGHT + end_slot * row_height)
+            
+            # Ensure end_y is greater than start_y
+            if end_y <= start_y:
+                end_y = start_y + int(row_height)
             
             margin = 2
             task_rect = [day_x + margin, start_y + margin, 
                         day_x + day_col_width - margin, end_y - margin]
+            
+            # Final validation: ensure rectangle is valid
+            if task_rect[3] <= task_rect[1]:
+                task_rect[3] = task_rect[1] + int(row_height)
             
             if duration_hours <= 1.0:
                 draw.rectangle(task_rect, fill=GRAY_LEVEL_3, outline=None)
