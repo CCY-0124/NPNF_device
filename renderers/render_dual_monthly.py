@@ -183,7 +183,7 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
             int(y1) - CELL_SPACING
         ]
         
-        draw.rectangle(rect, fill=GRAY_LEVEL_2, outline=None)
+        draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=None)
         
         # Day number
         day_label = str(day)
