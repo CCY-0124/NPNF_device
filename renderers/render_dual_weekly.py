@@ -306,22 +306,24 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     # TODO title
     draw.text((square_rect[0] + 6, square_rect[1] + 6), "TODO", font=fonts['day'], fill=BLACK)
     
-    # TODO sections (sample - can be replaced with API data)
+    # TODO sections - show only titles if no items
     sections = [
-        ("Daily", ["Check email", "Scrum sync", "Backup"]),
-        ("Today", ["Ship feature", "Fix bug #102", "Review design"]),
-        ("Upcoming", ["Sprint planning", "Refactor auth", "Benchmark I/O"]),
+        ("Daily", []),
+        ("Today", []),
+        ("Upcoming", []),
     ]
     section_font = fonts['task']
     y = square_rect[1] + 6 + DAY_FONT_SIZE + 6
     for title, items in sections:
         draw.text((square_rect[0] + 8, y), title, font=section_font, fill=BLACK)
         y += TASK_FONT_SIZE + 4
-        for item in items:
-            draw.text((square_rect[0] + 12, y), f"- {item}", font=fonts['time'], fill=BLACK)
-            y += TIME_FONT_SIZE + 3
-            if y > square_rect[3] - TIME_FONT_SIZE:
-                break
+        # Only draw items if there are any
+        if items:
+            for item in items:
+                draw.text((square_rect[0] + 12, y), f"- {item}", font=fonts['time'], fill=BLACK)
+                y += TIME_FONT_SIZE + 3
+                if y > square_rect[3] - TIME_FONT_SIZE:
+                    break
         y += 4
         if y > square_rect[3] - TASK_FONT_SIZE:
             break
