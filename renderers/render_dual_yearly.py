@@ -30,7 +30,7 @@ FONT_PATHS = {
 # Colors
 WHITE = 255
 BLACK = 0
-GRAY_LEVEL_2 = 192
+GRAY_LEVEL_3 = 192
 GRAY_LEVEL_3 = 128
 
 def days_in_month(dt):
@@ -202,7 +202,7 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 int(center_y + cell_size / 2)
             ]
             
-            bg_color = GRAY_LEVEL_2 if hours > 0 else WHITE
+            bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
             draw.rectangle(rect, fill=bg_color, outline=None)
             
             # Day number

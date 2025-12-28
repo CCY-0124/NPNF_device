@@ -30,7 +30,6 @@ FONT_PATHS = {
 # Colors
 WHITE = 255
 BLACK = 0
-GRAY_LEVEL_2 = 128
 GRAY_LEVEL_3 = 192
 
 def days_in_month(dt):
