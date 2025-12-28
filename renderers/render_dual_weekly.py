@@ -18,6 +18,7 @@ TITLE_PADDING = 15
 DAY_FONT_SIZE = 14
 TIME_FONT_SIZE = 12
 TASK_FONT_SIZE = 12
+DATETIME_FONT_SIZE = 24
 PANEL_MARGIN = 5
 HEADER_HEIGHT = 20
 TIME_COL_WIDTH = 55
@@ -29,6 +30,7 @@ FONT_PATHS = {
     'day': "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     'time': "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     'task': "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    'datetime': "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
 }
 
 TIME_START_HOUR = 8
@@ -92,6 +94,7 @@ def load_fonts():
         'day': DAY_FONT_SIZE,
         'time': TIME_FONT_SIZE,
         'task': TASK_FONT_SIZE,
+        'datetime': DATETIME_FONT_SIZE,
     }
     
     for name, path in FONT_PATHS.items():
@@ -285,9 +288,10 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
             label_y = y - TIME_LABEL_Y_OFFSET
             draw.text((TIME_LABEL_X, label_y), time_labels[i], font=fonts['time'], fill=BLACK)
     
-    # Right panel - TODO
+    # Right panel - TODO and date
     available_height = height - (HEADER_HEIGHT + TITLE_PADDING + TITLE_FONT_SIZE + 5) - PANEL_MARGIN
-    usable_height = max(0, available_height)
+    footer_h = DATETIME_FONT_SIZE + FOOTER_PADDING
+    usable_height = max(0, available_height - footer_h)
     square_size = max(0, min(right_width - PANEL_MARGIN, usable_height))
     square_start_y = HEADER_HEIGHT + TITLE_PADDING + TITLE_FONT_SIZE + 5
     square_rect = [right_x, square_start_y, right_x + square_size, square_start_y + square_size]
@@ -318,6 +322,19 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         if y > square_rect[3] - TASK_FONT_SIZE:
             break
     
+    # Date footer (no time)
+    datetime_y = square_rect[3] + (FOOTER_PADDING // 2)
+    date_line = today.strftime("%Y %m %d")
+    weekday_abbr = today.strftime("%a").upper()
+    date_weekday_line = f"{date_line} {weekday_abbr}"
+    
+    def center_text_y(base_y, text, font):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = bbox[2] - bbox[0]
+        x = right_x + (right_width - text_w) // 2
+        draw.text((x, base_y), text, font=font, fill=BLACK)
+    
+    center_text_y(datetime_y, date_weekday_line, fonts['datetime'])
     
     return image
 
