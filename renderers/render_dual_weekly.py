@@ -18,8 +18,6 @@ TITLE_PADDING = 15
 DAY_FONT_SIZE = 14
 TIME_FONT_SIZE = 12
 TASK_FONT_SIZE = 12
-DATETIME_FONT_SIZE = 24
-CLOCK_FONT_SIZE = 36
 PANEL_MARGIN = 5
 HEADER_HEIGHT = 20
 TIME_COL_WIDTH = 55
@@ -31,8 +29,6 @@ FONT_PATHS = {
     'day': "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     'time': "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     'task': "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    'datetime': "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
-    'clock': "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
 }
 
 TIME_START_HOUR = 8
@@ -44,7 +40,6 @@ TIME_LABEL_Y_OFFSET = 4
 WHITE = 255
 BLACK = 0
 GRAY_LEVEL_1 = 80
-GRAY_LEVEL_2 = 128
 GRAY_LEVEL_3 = 192
 
 def transform_tasks_to_weekly_format(api_todos: List[Dict], week_start_date: datetime) -> Dict[str, List]:
@@ -97,8 +92,6 @@ def load_fonts():
         'day': DAY_FONT_SIZE,
         'time': TIME_FONT_SIZE,
         'task': TASK_FONT_SIZE,
-        'datetime': DATETIME_FONT_SIZE,
-        'clock': CLOCK_FONT_SIZE,
     }
     
     for name, path in FONT_PATHS.items():
@@ -182,10 +175,8 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     row_height = available_height / num_time_slots
     
     def get_gray_level(duration_hours):
-        if duration_hours <= 1.0:
+        if duration_hours <= 3.0:
             return GRAY_LEVEL_3
-        elif duration_hours <= 3.0:
-            return GRAY_LEVEL_2
         else:
             return GRAY_LEVEL_1
     
@@ -294,10 +285,9 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
             label_y = y - TIME_LABEL_Y_OFFSET
             draw.text((TIME_LABEL_X, label_y), time_labels[i], font=fonts['time'], fill=BLACK)
     
-    # Right panel - TODO and datetime
+    # Right panel - TODO
     available_height = height - (HEADER_HEIGHT + TITLE_PADDING + TITLE_FONT_SIZE + 5) - PANEL_MARGIN
-    footer_h = DATETIME_FONT_SIZE + CLOCK_FONT_SIZE + FOOTER_PADDING
-    usable_height = max(0, available_height - footer_h)
+    usable_height = max(0, available_height)
     square_size = max(0, min(right_width - PANEL_MARGIN, usable_height))
     square_start_y = HEADER_HEIGHT + TITLE_PADDING + TITLE_FONT_SIZE + 5
     square_rect = [right_x, square_start_y, right_x + square_size, square_start_y + square_size]
@@ -328,22 +318,6 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         if y > square_rect[3] - TASK_FONT_SIZE:
             break
     
-    # Date/time footer
-    datetime_y = square_rect[3] + (FOOTER_PADDING // 2)
-    date_line = today.strftime("%Y %m %d")
-    weekday_abbr = today.strftime("%a").upper()
-    date_weekday_line = f"{date_line} {weekday_abbr}"
-    time_line = today.strftime("%H:%M:%S")
-    
-    def center_text_y(base_y, text, font):
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_w = bbox[2] - bbox[0]
-        x = right_x + (right_width - text_w) // 2
-        draw.text((x, base_y), text, font=font, fill=BLACK)
-    
-    center_text_y(datetime_y, date_weekday_line, fonts['datetime'])
-    time_y = datetime_y + DATETIME_FONT_SIZE + 6
-    center_text_y(time_y, time_line, fonts['clock'])
     
     return image
 

@@ -44,7 +44,6 @@ TIME_LABEL_Y_OFFSET = 4
 WHITE = 255
 BLACK = 0
 GRAY_LEVEL_1 = 80
-GRAY_LEVEL_2 = 128
 GRAY_LEVEL_3 = 192
 
 def transform_tasks_to_weekly_format(api_todos: List[Dict], week_start_date: datetime) -> Dict[str, List]:
@@ -197,10 +196,8 @@ def render_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Image:
     day_index_map = {day: i for i, day in enumerate(day_names)}
     
     def get_gray_level(duration_hours):
-        if duration_hours <= 1.0:
+        if duration_hours <= 3.0:
             return GRAY_LEVEL_3
-        elif duration_hours <= 3.0:
-            return GRAY_LEVEL_2
         else:
             return GRAY_LEVEL_1
     
