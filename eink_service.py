@@ -243,24 +243,10 @@ def update_display():
         )
         
         if USE_4GRAY_MODE:
-            if need_full_refresh:
-                # Full refresh (clear ghosting)
-                epd.display_4Gray(epd.getbuffer_4Gray(image))
-                partial_refresh_count = 0
-                print("  Full refresh (clearing ghosting)")
-            else:
-                # Try partial update
-                try:
-                    # display_Partial may support 4-gray buffer, try it
-                    epd.display_Partial(epd.getbuffer_4Gray(image))
-                    partial_refresh_count += 1
-                    print(f"  Partial refresh ({partial_refresh_count}/{MAX_PARTIAL_REFRESHES})")
-                except Exception as e:
-                    # If partial update fails (may not support 4-gray), fall back to full refresh
-                    print(f"  Partial update failed (may not support 4-gray): {e}")
-                    print("  Falling back to full refresh")
-                    epd.display_4Gray(epd.getbuffer_4Gray(image))
-                    partial_refresh_count = 0
+            # 4-gray mode does not support partial update, always use full refresh
+            epd.display_4Gray(epd.getbuffer_4Gray(image))
+            partial_refresh_count = 0
+            print("  Full refresh (4-gray mode)")
         else:
             # Black and white mode
             if need_full_refresh:
@@ -319,18 +305,11 @@ def main():
         epd = epd7in5_V2.EPD()
         if USE_4GRAY_MODE:
             epd.init_4Gray()
-            print("4-gray mode initialized")
-            # Initialize partial update mode if available
-            if hasattr(epd, 'init_part'):
-                try:
-                    epd.init_part()
-                    print("Partial update mode initialized")
-                except Exception as e:
-                    print(f"Warning: Could not initialize partial update mode: {e}")
+            print("4-gray mode initialized (partial update not supported in 4-gray mode)")
         else:
             epd.init()
             print("Display initialized")
-            # Initialize partial update mode if available
+            # Initialize partial update mode if available (only for black/white mode)
             if hasattr(epd, 'init_part'):
                 try:
                     epd.init_part()
