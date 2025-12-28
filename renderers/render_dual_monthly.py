@@ -20,8 +20,6 @@ CELL_FONT_SIZE = 14
 PANEL_MARGIN = 5
 HEADER_HEIGHT = 26
 CELL_SPACING = 2
-DATETIME_FONT_SIZE = 24
-CLOCK_FONT_SIZE = 36
 FOOTER_PADDING = 40
 
 FONT_PATHS = {
@@ -30,15 +28,12 @@ FONT_PATHS = {
     'cell': "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     'day': "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     'time': "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    'datetime': "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
-    'clock': "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
 }
 
 # Colors
 WHITE = 255
 BLACK = 0
 GRAY_LEVEL_1 = 80
-GRAY_LEVEL_2 = 128
 GRAY_LEVEL_3 = 192
 
 def days_in_month(dt):
@@ -90,8 +85,6 @@ def load_fonts():
         'cell': CELL_FONT_SIZE,
         'day': HEADER_FONT_SIZE,
         'time': 12,
-        'datetime': DATETIME_FONT_SIZE,
-        'clock': CLOCK_FONT_SIZE,
     }
     
     for name, path in FONT_PATHS.items():
@@ -214,10 +207,9 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
                 hour_rect = [start_x - rect_width // 2, y_top, start_x, y_bottom]
                 draw.rectangle(hour_rect, fill=BLACK, outline=None)
     
-    # Right panel: TODO square and date/time
+    # Right panel: TODO square
     available_height = height - (HEADER_HEIGHT + TITLE_PADDING + TITLE_FONT_SIZE + 5) - PANEL_MARGIN
-    footer_h = DATETIME_FONT_SIZE + CLOCK_FONT_SIZE + FOOTER_PADDING
-    usable_height = max(0, available_height - footer_h)
+    usable_height = max(0, available_height)
     square_size = max(0, min(right_width - PANEL_MARGIN, usable_height))
     square_start_y = HEADER_HEIGHT + TITLE_PADDING + TITLE_FONT_SIZE + 5
     square_rect = [right_x, square_start_y, right_x + square_size, square_start_y + square_size]
@@ -248,22 +240,6 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         if y > square_rect[3] - 12:
             break
     
-    # Date/time footer
-    datetime_y = square_rect[3] + (FOOTER_PADDING // 2)
-    date_line = today.strftime("%Y %m %d")
-    weekday_abbr = today.strftime("%a").upper()
-    date_weekday_line = f"{date_line} {weekday_abbr}"
-    time_line = today.strftime("%H:%M:%S")
-    
-    def center_text_y(base_y, text, font):
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_w = bbox[2] - bbox[0]
-        x = right_x + (right_width - text_w) // 2
-        draw.text((x, base_y), text, font=font, fill=BLACK)
-    
-    center_text_y(datetime_y, date_weekday_line, fonts['datetime'])
-    time_y = datetime_y + DATETIME_FONT_SIZE + 6
-    center_text_y(time_y, time_line, fonts['clock'])
     
     return image
 
