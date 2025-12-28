@@ -106,6 +106,8 @@ USE_4GRAY_MODE = True
 running = True
 last_config = None
 last_refresh_time = 0
+partial_refresh_count = 0  # Counter for partial refreshes
+MAX_PARTIAL_REFRESHES = 5  # Full refresh after this many partial refreshes (to clear ghosting)
 epd = None
 
 def signal_handler(sig, frame):
@@ -162,7 +164,11 @@ def get_date_range_for_view(view_type):
 
 def update_display():
     """Fetch data and update display if needed"""
-    global last_config, last_refresh_time
+    global last_config, last_refresh_time, partial_refresh_count
+    
+    # Store last image hash to detect actual content changes
+    if not hasattr(update_display, 'last_image_hash'):
+        update_display.last_image_hash = None
     
     try:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Fetching data...")
@@ -214,12 +220,62 @@ def update_display():
         # Call render function
         image = render_func({'todos': todos}, config)
         
+        # Calculate image hash to detect actual content changes
+        import hashlib
+        image_bytes = image.tobytes()
+        current_hash = hashlib.md5(image_bytes).hexdigest()
+        
+        # If content hasn't changed at all, skip update
+        if update_display.last_image_hash == current_hash:
+            print("  Content unchanged, skipping update")
+            return
+        
+        update_display.last_image_hash = current_hash
+        
         # Display on e-ink
         print("  Updating display...")
+        
+        # Determine if we need full refresh (to clear ghosting)
+        need_full_refresh = (
+            partial_refresh_count >= MAX_PARTIAL_REFRESHES or
+            last_config is None or  # First update
+            config_key != last_config  # Config or task count changed
+        )
+        
         if USE_4GRAY_MODE:
-            epd.display_4Gray(epd.getbuffer_4Gray(image))
+            if need_full_refresh:
+                # Full refresh (clear ghosting)
+                epd.display_4Gray(epd.getbuffer_4Gray(image))
+                partial_refresh_count = 0
+                print("  Full refresh (clearing ghosting)")
+            else:
+                # Try partial update
+                try:
+                    # display_Partial may support 4-gray buffer, try it
+                    epd.display_Partial(epd.getbuffer_4Gray(image))
+                    partial_refresh_count += 1
+                    print(f"  Partial refresh ({partial_refresh_count}/{MAX_PARTIAL_REFRESHES})")
+                except Exception as e:
+                    # If partial update fails (may not support 4-gray), fall back to full refresh
+                    print(f"  Partial update failed (may not support 4-gray): {e}")
+                    print("  Falling back to full refresh")
+                    epd.display_4Gray(epd.getbuffer_4Gray(image))
+                    partial_refresh_count = 0
         else:
-            epd.display(epd.getbuffer(image.convert('1')))
+            # Black and white mode
+            if need_full_refresh:
+                epd.display(epd.getbuffer(image.convert('1')))
+                partial_refresh_count = 0
+                print("  Full refresh (clearing ghosting)")
+            else:
+                try:
+                    epd.display_Partial(epd.getbuffer(image.convert('1')))
+                    partial_refresh_count += 1
+                    print(f"  Partial refresh ({partial_refresh_count}/{MAX_PARTIAL_REFRESHES})")
+                except Exception as e:
+                    print(f"  Partial update failed: {e}, using full refresh")
+                    epd.display(epd.getbuffer(image.convert('1')))
+                    partial_refresh_count = 0
         
         last_config = config_key
         last_refresh_time = time.time()
@@ -264,9 +320,23 @@ def main():
         if USE_4GRAY_MODE:
             epd.init_4Gray()
             print("4-gray mode initialized")
+            # Initialize partial update mode if available
+            if hasattr(epd, 'init_part'):
+                try:
+                    epd.init_part()
+                    print("Partial update mode initialized")
+                except Exception as e:
+                    print(f"Warning: Could not initialize partial update mode: {e}")
         else:
             epd.init()
             print("Display initialized")
+            # Initialize partial update mode if available
+            if hasattr(epd, 'init_part'):
+                try:
+                    epd.init_part()
+                    print("Partial update mode initialized")
+                except Exception as e:
+                    print(f"Warning: Could not initialize partial update mode: {e}")
         epd.Clear()
         print("Display cleared and ready")
     except FileNotFoundError as e:
