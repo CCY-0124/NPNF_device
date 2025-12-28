@@ -99,6 +99,7 @@ if not DEVICE_TOKEN:
 # Polling configuration
 POLL_INTERVAL = int(os.getenv('EINK_POLL_INTERVAL', '60'))  # Default: 60 seconds
 MIN_REFRESH_INTERVAL = 300  # Minimum 5 minutes between display refreshes (to preserve e-ink lifespan)
+DISPLAY_SLEEPING = False  # Track if display is in sleep mode
 
 USE_4GRAY_MODE = True
 
@@ -164,7 +165,7 @@ def get_date_range_for_view(view_type):
 
 def update_display():
     """Fetch data and update display if needed"""
-    global last_config, last_refresh_time, partial_refresh_count
+    global last_config, last_refresh_time, partial_refresh_count, epd, DISPLAY_SLEEPING
     
     # Store last image hash to detect actual content changes
     if not hasattr(update_display, 'last_image_hash'):
@@ -235,6 +236,25 @@ def update_display():
         # Display on e-ink
         print("  Updating display...")
         
+        # Reinitialize display if it's in sleep mode (required before refresh)
+        if DISPLAY_SLEEPING:
+            try:
+                if USE_4GRAY_MODE:
+                    epd.init_4Gray()
+                    print("  Display reinitialized (4-gray mode)")
+                else:
+                    epd.init()
+                    if hasattr(epd, 'init_part'):
+                        try:
+                            epd.init_part()
+                        except:
+                            pass
+                    print("  Display reinitialized")
+                DISPLAY_SLEEPING = False
+            except Exception as e:
+                print(f"  Error reinitializing display: {e}")
+                return
+        
         # Determine if we need full refresh (to clear ghosting)
         need_full_refresh = (
             partial_refresh_count >= MAX_PARTIAL_REFRESHES or
@@ -263,6 +283,14 @@ def update_display():
                     epd.display(epd.getbuffer(image.convert('1')))
                     partial_refresh_count = 0
         
+        # Put display to sleep mode after refresh (protect screen from high voltage)
+        try:
+            epd.sleep()
+            DISPLAY_SLEEPING = True
+            print("  Display put to sleep mode (protecting screen)")
+        except Exception as e:
+            print(f"  Warning: Could not put display to sleep: {e}")
+        
         last_config = config_key
         last_refresh_time = time.time()
         print("  Display updated successfully")
@@ -274,7 +302,7 @@ def update_display():
 
 def main():
     """Main service loop"""
-    global epd
+    global epd, DISPLAY_SLEEPING
     
     print("=" * 50)
     print("E-ink Display Service Starting...")
@@ -317,6 +345,7 @@ def main():
                 except Exception as e:
                     print(f"Warning: Could not initialize partial update mode: {e}")
         epd.Clear()
+        DISPLAY_SLEEPING = False  # Display is initialized, not sleeping
         print("Display cleared and ready")
     except FileNotFoundError as e:
         print(f"Failed to initialize display: {e}")
