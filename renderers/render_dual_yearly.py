@@ -31,7 +31,6 @@ FONT_PATHS = {
 WHITE = 255
 BLACK = 0
 GRAY_LEVEL_3 = 192
-GRAY_LEVEL_3 = 128
 
 def days_in_month(dt):
     """Get number of days in a month"""
@@ -97,11 +96,12 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     
     Args:
         data: {'todos': [...]} - Task data from API
-        config: Device configuration
+        config: Device configuration with 'display_mode' ('4gray' or 'bw')
     
     Returns:
         PIL Image ready for display
     """
+    display_mode = config.get('display_mode', '4gray')  # Default to 4-gray mode
     todos = data.get('todos', [])
     today = datetime.now()
     year = today.year
@@ -202,11 +202,16 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 int(center_y + cell_size / 2)
             ]
             
-            bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
-            draw.rectangle(rect, fill=bg_color, outline=None)
-            
-            # Day number
-            text_color = WHITE if bg_color == GRAY_LEVEL_3 else BLACK
+            # Draw calendar cell based on mode
+            if display_mode == 'bw':
+                # Black and white mode: use outline only
+                draw.rectangle(rect, outline=BLACK, width=1)
+                text_color = BLACK
+            else:
+                # 4-gray mode: use fill with gray level
+                bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
+                draw.rectangle(rect, fill=bg_color, outline=BLACK, width=1)
+                text_color = WHITE if bg_color == GRAY_LEVEL_3 else BLACK
             day_label = str(day)
             day_bbox = draw.textbbox((0, 0), day_label, font=fonts['cell'])
             day_text_x = center_x - (day_bbox[2] - day_bbox[0]) / 2

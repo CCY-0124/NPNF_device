@@ -96,11 +96,12 @@ def render_monthly_square(data: Dict[str, Any], config: Dict[str, Any]) -> Image
     
     Args:
         data: {'todos': [...]} - Task data from API
-        config: Device configuration
+        config: Device configuration with 'display_mode' ('4gray' or 'bw')
     
     Returns:
         PIL Image ready for display
     """
+    display_mode = config.get('display_mode', '4gray')  # Default to 4-gray mode
     todos = data.get('todos', [])
     today = datetime.now()
     first_day = today.replace(day=1)
@@ -161,7 +162,13 @@ def render_monthly_square(data: Dict[str, Any], config: Dict[str, Any]) -> Image
             int(y1) - CELL_SPACING
         ]
         
-        draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=None)
+        # Draw calendar cell based on mode
+        if display_mode == 'bw':
+            # Black and white mode: use outline only
+            draw.rectangle(rect, outline=BLACK, width=1)
+        else:
+            # 4-gray mode: use fill with gray level
+            draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=BLACK, width=1)
         
         # Day number
         day_label = str(day)
