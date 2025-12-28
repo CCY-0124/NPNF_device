@@ -11,3 +11,5 @@ ExecStart=/usr/bin/python3 /home/npnf/eink/NPNF_device/auto_update.py --check-ap
 StandardOutput=journal
 StandardError=journal
 
+
+
