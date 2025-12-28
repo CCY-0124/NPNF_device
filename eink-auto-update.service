@@ -1,0 +1,13 @@
+[Unit]
+Description=Auto update service for E-ink Display Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=npnf
+WorkingDirectory=/home/npnf/eink/NPNF_device
+ExecStart=/usr/bin/python3 /home/npnf/eink/NPNF_device/auto_update.py --check-api
+StandardOutput=journal
+StandardError=journal
+
