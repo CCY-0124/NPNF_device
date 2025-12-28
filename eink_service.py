@@ -101,8 +101,6 @@ POLL_INTERVAL = int(os.getenv('EINK_POLL_INTERVAL', '60'))  # Default: 60 second
 MIN_REFRESH_INTERVAL = 300  # Minimum 5 minutes between display refreshes (to preserve e-ink lifespan)
 DISPLAY_SLEEPING = False  # Track if display is in sleep mode
 
-USE_4GRAY_MODE = True
-
 # Global state
 running = True
 last_config = None
@@ -110,6 +108,7 @@ last_refresh_time = 0
 partial_refresh_count = 0  # Counter for partial refreshes
 MAX_PARTIAL_REFRESHES = 5  # Full refresh after this many partial refreshes (to clear ghosting)
 epd = None
+current_display_mode = None  # Track current display mode from API config
 
 def signal_handler(sig, frame):
     """Handle shutdown signals gracefully"""
@@ -165,7 +164,7 @@ def get_date_range_for_view(view_type):
 
 def update_display():
     """Fetch data and update display if needed"""
-    global last_config, last_refresh_time, partial_refresh_count, epd, DISPLAY_SLEEPING
+    global last_config, last_refresh_time, partial_refresh_count, epd, DISPLAY_SLEEPING, current_display_mode
     
     # Store last image hash to detect actual content changes
     if not hasattr(update_display, 'last_image_hash'):
@@ -200,14 +199,45 @@ def update_display():
         config = data.get('config', {})
         todos = data.get('todos', [])
         
+        # Get display_mode from config (default to '4gray' if not specified)
+        display_mode = config.get('display_mode', '4gray')
+        if display_mode not in ['4gray', 'bw']:
+            print(f"  Warning: Invalid display_mode '{display_mode}', defaulting to '4gray'")
+            display_mode = '4gray'
+        
+        # Check if display mode changed and reinitialize if needed
+        if current_display_mode is not None and current_display_mode != display_mode:
+            print(f"  Display mode changed from '{current_display_mode}' to '{display_mode}', reinitializing...")
+            try:
+                # Reinitialize display with new mode
+                if display_mode == '4gray':
+                    epd.init_4Gray()
+                    print("  Display reinitialized (4-gray mode)")
+                else:
+                    epd.init()
+                    if hasattr(epd, 'init_part'):
+                        try:
+                            epd.init_part()
+                        except:
+                            pass
+                    print("  Display reinitialized (black/white mode)")
+                DISPLAY_SLEEPING = False
+                current_display_mode = display_mode
+            except Exception as e:
+                print(f"  Error reinitializing display for mode change: {e}")
+                # Continue with old mode if reinitialization fails
+        elif current_display_mode is None:
+            # First time, just record the mode
+            current_display_mode = display_mode
+        
         # Check if we need to refresh
-        config_key = (view_type, len(todos))  # Simple change detection
+        config_key = (view_type, len(todos), display_mode)  # Include display_mode in change detection
         
         if not should_refresh_display(config_key, last_config, last_refresh_time):
             print(f"  Skipping refresh (too soon since last update)")
             return
         
-        print(f"  View: {view_type}, Tasks: {len(todos)}")
+        print(f"  View: {view_type}, Display Mode: {display_mode}, Tasks: {len(todos)}")
         
         # Use renderer system
         from renderers.renderers import get_renderer, list_renderers
@@ -219,7 +249,6 @@ def update_display():
             return
         
         # Call render function with display mode
-        display_mode = '4gray' if USE_4GRAY_MODE else 'bw'
         render_config = config.copy()
         render_config['display_mode'] = display_mode
         image = render_func({'todos': todos}, render_config)
@@ -242,7 +271,7 @@ def update_display():
         # Reinitialize display if it's in sleep mode (required before refresh)
         if DISPLAY_SLEEPING:
             try:
-                if USE_4GRAY_MODE:
+                if display_mode == '4gray':
                     epd.init_4Gray()
                     print("  Display reinitialized (4-gray mode)")
                 else:
@@ -252,7 +281,7 @@ def update_display():
                             epd.init_part()
                         except:
                             pass
-                    print("  Display reinitialized")
+                    print("  Display reinitialized (black/white mode)")
                 DISPLAY_SLEEPING = False
             except Exception as e:
                 print(f"  Error reinitializing display: {e}")
@@ -265,7 +294,7 @@ def update_display():
             config_key != last_config  # Config or task count changed
         )
         
-        if USE_4GRAY_MODE:
+        if display_mode == '4gray':
             # 4-gray mode does not support partial update, always use full refresh
             epd.display_4Gray(epd.getbuffer_4Gray(image))
             partial_refresh_count = 0
@@ -305,7 +334,7 @@ def update_display():
 
 def main():
     """Main service loop"""
-    global epd, DISPLAY_SLEEPING
+    global epd, DISPLAY_SLEEPING, current_display_mode
     
     print("=" * 50)
     print("E-ink Display Service Starting...")
@@ -333,13 +362,38 @@ def main():
             print("  3. Reboot after enabling SPI")
             print("  4. Check device files: ls -l /dev/spi*")
         
+        # Try to fetch display_mode from API before initializing
+        # Default to '4gray' if API call fails or config not available
+        initial_display_mode = '4gray'
+        try:
+            print("Fetching device config to determine display mode...")
+            today = datetime.now()
+            days_since_monday = today.weekday()
+            monday = (today - timedelta(days=days_since_monday)).replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date, end_date = monday.strftime('%Y-%m-%d'), (monday + timedelta(days=6)).strftime('%Y-%m-%d')
+            data = fetch_device_data(DEVICE_TOKEN, start_date, end_date)
+            if data and 'config' in data:
+                config = data.get('config', {})
+                api_display_mode = config.get('display_mode', '4gray')
+                if api_display_mode in ['4gray', 'bw']:
+                    initial_display_mode = api_display_mode
+                    print(f"  Display mode from API: {initial_display_mode}")
+                else:
+                    print(f"  Warning: Invalid display_mode '{api_display_mode}' in API, using default '4gray'")
+            else:
+                print("  Warning: Could not fetch config from API, using default '4gray'")
+        except Exception as e:
+            print(f"  Warning: Error fetching config: {e}, using default '4gray'")
+        
+        current_display_mode = initial_display_mode
+        
         epd = epd7in5_V2.EPD()
-        if USE_4GRAY_MODE:
+        if initial_display_mode == '4gray':
             epd.init_4Gray()
             print("4-gray mode initialized (partial update not supported in 4-gray mode)")
         else:
             epd.init()
-            print("Display initialized")
+            print("Display initialized (black/white mode)")
             # Initialize partial update mode if available (only for black/white mode)
             if hasattr(epd, 'init_part'):
                 try:
