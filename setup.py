@@ -655,9 +655,119 @@ WantedBy=multi-user.target
     
     return True
 
+def setup_auto_update():
+    """Set up auto update system (systemd timer + service)."""
+    print_step(8, "Setting Up Auto Update")
+    
+    if os.geteuid() != 0:
+        print("\nWarning: Auto update setup requires root privileges.")
+        print("You can set up auto update manually or run with sudo.")
+        response = input("Continue to generate auto update files? (y/n): ").lower()
+        if response != 'y':
+            return False
+    
+    print("\nThis will set up automatic updates for the e-ink display service.")
+    print("Updates can be triggered by:")
+    print("  1. Scheduled timer (daily at 3:00 AM)")
+    print("  2. API command (remote trigger)")
+    
+    response = input("\nDo you want to set up auto update? (y/n): ").lower()
+    if response != 'y':
+        print("Skipping auto update setup.")
+        return False
+    
+    # Get working directory and user
+    working_dir = SCRIPT_DIR
+    user = os.getenv('SUDO_USER') or os.getenv('USER') or 'npnf'
+    
+    # Paths
+    timer_file = SCRIPT_DIR / 'eink-auto-update.timer'
+    service_file = SCRIPT_DIR / 'eink-auto-update.service'
+    systemd_timer_path = Path('/etc/systemd/system/eink-auto-update.timer')
+    systemd_service_path = Path('/etc/systemd/system/eink-auto-update.service')
+    
+    # Update service file with correct paths
+    if service_file.exists():
+        try:
+            with open(service_file, 'r') as f:
+                service_content = f.read()
+            
+            # Replace placeholders
+            service_content = service_content.replace(
+                'User=npnf',
+                f'User={user}'
+            )
+            service_content = service_content.replace(
+                'WorkingDirectory=/home/npnf/eink/NPNF_device',
+                f'WorkingDirectory={working_dir}'
+            )
+            service_content = service_content.replace(
+                'ExecStart=/usr/bin/python3 /home/npnf/eink/NPNF_device/auto_update.py',
+                f'ExecStart=/usr/bin/python3 {working_dir}/auto_update.py'
+            )
+            
+            with open(service_file, 'w') as f:
+                f.write(service_content)
+        except Exception as e:
+            print(f"Warning: Could not update service file: {e}")
+    
+    # Copy to systemd if running as root
+    if os.geteuid() == 0:
+        try:
+            # Copy service file
+            if service_file.exists():
+                shutil.copy(service_file, systemd_service_path)
+                print(f"✓ Service file installed to: {systemd_service_path}")
+            
+            # Copy timer file
+            if timer_file.exists():
+                shutil.copy(timer_file, systemd_timer_path)
+                print(f"✓ Timer file installed to: {systemd_timer_path}")
+            
+            # Reload systemd
+            subprocess.run(['systemctl', 'daemon-reload'], check=True, timeout=30)
+            print("✓ Systemd daemon reloaded")
+            
+            # Enable timer
+            subprocess.run(['systemctl', 'enable', 'eink-auto-update.timer'], check=True, timeout=30)
+            print("✓ Auto update timer enabled (will run daily at 3:00 AM)")
+            
+            # Start timer
+            subprocess.run(['systemctl', 'start', 'eink-auto-update.timer'], check=True, timeout=30)
+            print("✓ Auto update timer started")
+            
+            # Show status
+            time.sleep(1)
+            print("\nAuto update timer status:")
+            subprocess.run(['systemctl', 'status', 'eink-auto-update.timer', '--no-pager'], timeout=10)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            print(f"✗ Error installing auto update: {e}")
+            print(f"\nTroubleshooting:")
+            print(f"  1. Verify files exist:")
+            print(f"     ls -l {service_file}")
+            print(f"     ls -l {timer_file}")
+            print(f"  2. Manually install:")
+            print(f"     sudo cp {service_file} /etc/systemd/system/")
+            print(f"     sudo cp {timer_file} /etc/systemd/system/")
+            print(f"     sudo systemctl daemon-reload")
+            print(f"     sudo systemctl enable eink-auto-update.timer")
+            print(f"     sudo systemctl start eink-auto-update.timer")
+            print(f"  3. Check timer status: sudo systemctl status eink-auto-update.timer")
+            print(f"  4. List all timers: sudo systemctl list-timers")
+            return False
+    else:
+        print(f"\nTo install auto update, run:")
+        print(f"  sudo cp {service_file} /etc/systemd/system/")
+        print(f"  sudo cp {timer_file} /etc/systemd/system/")
+        print(f"  sudo systemctl daemon-reload")
+        print(f"  sudo systemctl enable eink-auto-update.timer")
+        print(f"  sudo systemctl start eink-auto-update.timer")
+    
+    return True
+
 def test_connection():
     """Test the connection to the API."""
-    print_step(7, "Testing Connection")
+    print_step(9, "Testing Connection")
     
     if not CONFIG_FILE.exists():
         print("Error: Configuration file not found. Please set up the device token first.")
@@ -818,7 +928,8 @@ def main():
     print("  4. Update API client configuration")
     print("  5. Install dependencies (optional)")
     print("  6. Set up systemd service (optional)")
-    print("  7. Test connection")
+    print("  7. Set up auto update (optional)")
+    print("  8. Test connection")
     
     response = input("\nReady to start? (y/n): ").lower()
     if response != 'y':
@@ -846,6 +957,9 @@ def main():
     
     # Set up systemd service (optional)
     setup_systemd_service()
+    
+    # Set up auto update (optional)
+    setup_auto_update()
     
     # Test connection
     if wifi_success or input("\nDo you want to test the connection? (y/n): ").lower() == 'y':
