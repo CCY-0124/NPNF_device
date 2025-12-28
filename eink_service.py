@@ -218,8 +218,11 @@ def update_display():
             print(f"  Available renderers: {', '.join(list_renderers())}")
             return
         
-        # Call render function
-        image = render_func({'todos': todos}, config)
+        # Call render function with display mode
+        display_mode = '4gray' if USE_4GRAY_MODE else 'bw'
+        render_config = config.copy()
+        render_config['display_mode'] = display_mode
+        image = render_func({'todos': todos}, render_config)
         
         # Calculate image hash to detect actual content changes
         import hashlib

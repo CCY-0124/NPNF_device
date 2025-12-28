@@ -112,11 +112,12 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     
     Args:
         data: {'todos': [...]} - Task data from API
-        config: Device configuration
+        config: Device configuration with 'display_mode' ('4gray' or 'bw')
     
     Returns:
         PIL Image ready for display
     """
+    display_mode = config.get('display_mode', '4gray')  # Default to 4-gray mode
     todos = data.get('todos', [])
     today = datetime.now()
     days_since_monday = today.weekday()
@@ -177,11 +178,6 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     available_height = table_height - HEADER_HEIGHT
     row_height = available_height / num_time_slots
     
-    def get_gray_level(duration_hours):
-        if duration_hours <= 3.0:
-            return GRAY_LEVEL_3
-        else:
-            return GRAY_LEVEL_1
     
     def time_to_slot_index(time_str):
         try:
@@ -231,7 +227,6 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
             except:
                 continue
             
-            gray_level = get_gray_level(duration_hours)
             start_slot = time_to_slot_index(start_time)
             end_slot = time_to_slot_index(end_time)
             
@@ -257,10 +252,17 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
             if task_rect[3] <= task_rect[1]:
                 continue
             
-            if duration_hours <= 1.0:
-                draw.rectangle(task_rect, fill=GRAY_LEVEL_3, outline=None)
+            # Draw task rectangle based on mode
+            if display_mode == 'bw':
+                # Black and white mode: use outline only
+                draw.rectangle(task_rect, outline=BLACK, width=1)
             else:
-                draw.rectangle(task_rect, fill=gray_level, outline=None)
+                # 4-gray mode: use fill with gray level
+                if duration_hours <= 1.0:
+                    draw.rectangle(task_rect, fill=GRAY_LEVEL_3, outline=BLACK, width=1)
+                else:
+                    gray_level = GRAY_LEVEL_1 if duration_hours > 3.0 else GRAY_LEVEL_3
+                    draw.rectangle(task_rect, fill=gray_level, outline=BLACK, width=1)
             
             # Draw task title if there's enough space
             task_title = task.get('title', '')
