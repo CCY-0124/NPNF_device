@@ -257,12 +257,12 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 # Black and white mode: use outline only
                 draw.rectangle(task_rect, outline=BLACK, width=1)
             else:
-                # 4-gray mode: use fill with gray level
+                # 4-gray mode: use fill only (like before)
                 if duration_hours <= 1.0:
-                    draw.rectangle(task_rect, fill=GRAY_LEVEL_3, outline=BLACK, width=1)
+                    draw.rectangle(task_rect, fill=GRAY_LEVEL_3, outline=None)
                 else:
                     gray_level = GRAY_LEVEL_1 if duration_hours > 3.0 else GRAY_LEVEL_3
-                    draw.rectangle(task_rect, fill=gray_level, outline=BLACK, width=1)
+                    draw.rectangle(task_rect, fill=gray_level, outline=None)
             
             # Draw task title if there's enough space
             task_title = task.get('title', '')

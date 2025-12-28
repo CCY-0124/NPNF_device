@@ -208,9 +208,9 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 draw.rectangle(rect, outline=BLACK, width=1)
                 text_color = BLACK
             else:
-                # 4-gray mode: use fill with gray level
+                # 4-gray mode: use fill only (like before)
                 bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
-                draw.rectangle(rect, fill=bg_color, outline=BLACK, width=1)
+                draw.rectangle(rect, fill=bg_color, outline=None)
                 text_color = WHITE if bg_color == GRAY_LEVEL_3 else BLACK
             day_label = str(day)
             day_bbox = draw.textbbox((0, 0), day_label, font=fonts['cell'])

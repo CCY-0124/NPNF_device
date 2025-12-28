@@ -167,8 +167,8 @@ def render_monthly_square(data: Dict[str, Any], config: Dict[str, Any]) -> Image
             # Black and white mode: use outline only
             draw.rectangle(rect, outline=BLACK, width=1)
         else:
-            # 4-gray mode: use fill with gray level
-            draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=BLACK, width=1)
+            # 4-gray mode: use fill only (like before)
+            draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=None)
         
         # Day number
         day_label = str(day)
