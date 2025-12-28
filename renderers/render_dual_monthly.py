@@ -226,22 +226,24 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
     # TODO title
     draw.text((square_rect[0] + 6, square_rect[1] + 6), "TODO", font=fonts['day'], fill=BLACK)
     
-    # TODO sections
+    # TODO sections - show only titles if no items
     sections = [
-        ("Daily", ["Check email", "Scrum sync", "Backup"]),
-        ("Today", ["Ship feature", "Fix bug #102", "Review design"]),
-        ("Upcoming", ["Sprint planning", "Refactor auth", "Benchmark I/O"]),
+        ("Daily", []),
+        ("Today", []),
+        ("Upcoming", []),
     ]
     section_font = fonts['time']
     y = square_rect[1] + 6 + HEADER_FONT_SIZE + 6
     for title, items in sections:
         draw.text((square_rect[0] + 8, y), title, font=section_font, fill=BLACK)
         y += 12 + 4
-        for item in items:
-            draw.text((square_rect[0] + 12, y), f"- {item}", font=fonts['time'], fill=BLACK)
-            y += 12 + 3
-            if y > square_rect[3] - 12:
-                break
+        # Only draw items if there are any
+        if items:
+            for item in items:
+                draw.text((square_rect[0] + 12, y), f"- {item}", font=fonts['time'], fill=BLACK)
+                y += 12 + 3
+                if y > square_rect[3] - 12:
+                    break
         y += 4
         if y > square_rect[3] - 12:
             break
