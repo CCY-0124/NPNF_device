@@ -31,6 +31,7 @@ FONT_PATHS = {
 WHITE = 255
 BLACK = 0
 GRAY_LEVEL_2 = 128
+GRAY_LEVEL_3 = 192
 
 def days_in_month(dt):
     """Get number of days in a month"""
@@ -161,7 +162,7 @@ def render_monthly_re(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Ima
             int(y1) - CELL_SPACING
         ]
         
-        draw.rectangle(rect, fill=GRAY_LEVEL_2, outline=None)
+        draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=None)
         
         # Day number
         day_label = str(day)
