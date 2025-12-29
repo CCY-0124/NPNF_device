@@ -59,10 +59,6 @@ def calculate_hours_from_tasks(todos: List[Dict], month_date: datetime) -> Dict[
             start_h, start_m = int(start_parts[0]), int(start_parts[1])
             end_h, end_m = int(end_parts[0]), int(end_parts[1])
             
-            # Filter tasks: only include tasks within 8am-12pm (08:00-12:00)
-            if start_h < 8 or start_h >= 12:
-                continue
-            
             start_minutes = start_h * 60 + start_m
             end_minutes = end_h * 60 + end_m
             if end_minutes < start_minutes:
