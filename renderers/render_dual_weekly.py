@@ -82,8 +82,8 @@ def transform_tasks_to_weekly_format(api_todos: List[Dict], week_start_date: dat
         try:
             start_parts = start_time.split(':')
             start_h = int(start_parts[0])
-            # Skip tasks that start before 8am or after 12pm
-            if start_h < 8 or start_h >= 12:
+            # Skip tasks that start before 8am or after 12pm (12:00 is included)
+            if start_h < 8 or start_h > 12:
                 continue
         except:
             continue
@@ -312,11 +312,47 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     # TODO title
     draw.text((square_rect[0] + 6, square_rect[1] + 6), "TODO", font=fonts['day'], fill=BLACK)
     
-    # TODO sections - show only titles if no items
+    # TODO sections - extract tasks from todos
+    today_date = today.date()
+    daily_todos = []
+    today_todos = []
+    upcoming_todos = []
+    
+    for task in todos:
+        # Skip tasks with time (they are shown in the calendar)
+        if task.get('start_time') and task.get('end_time'):
+            continue
+        
+        # Skip completed tasks
+        if task.get('completed', False):
+            continue
+        
+        title = task.get('title', 'Untitled')
+        task_date = None
+        
+        # Get task date if available
+        if task.get('start_date'):
+            try:
+                task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
+            except:
+                pass
+        
+        # Categorize tasks
+        if task_date:
+            if task_date == today_date:
+                today_todos.append(title)
+            elif task_date > today_date:
+                upcoming_todos.append(title)
+            else:
+                daily_todos.append(title)
+        else:
+            # No date, treat as daily
+            daily_todos.append(title)
+    
     sections = [
-        ("Daily", []),
-        ("Today", []),
-        ("Upcoming", []),
+        ("Daily", daily_todos[:3]),  # Limit to 3 items per section
+        ("Today", today_todos[:3]),
+        ("Upcoming", upcoming_todos[:3]),
     ]
     section_font = fonts['task']
     y = square_rect[1] + 6 + DAY_FONT_SIZE + 6

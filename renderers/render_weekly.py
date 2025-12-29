@@ -88,8 +88,8 @@ def transform_tasks_to_weekly_format(api_todos: List[Dict], week_start_date: dat
         try:
             start_parts = start_time.split(':')
             start_h = int(start_parts[0])
-            # Skip tasks that start before 8am or after 12pm
-            if start_h < 8 or start_h >= 12:
+            # Skip tasks that start before 8am or after 12pm (12:00 is included)
+            if start_h < 8 or start_h > 12:
                 continue
         except:
             continue
