@@ -31,7 +31,7 @@ FONT_PATHS = {
 # Colors
 WHITE = 255
 BLACK = 0
-GRAY_LEVEL_1 = 80  # Dark gray for background
+GRAY_LEVEL_1 = 80
 GRAY_LEVEL_3 = 192
 
 def days_in_month(dt):
@@ -129,8 +129,7 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     draw.text((title_x, TITLE_PADDING), year_title, font=fonts['title'], fill=BLACK)
     
     # Grid: 3 rows, 4 columns for 12 months
-    title_height = TITLE_PADDING + TITLE_FONT_SIZE + 5
-    grid_top = title_height
+    grid_top = TITLE_PADDING + TITLE_FONT_SIZE + 5
     grid_left = PANEL_MARGIN
     grid_width = width - 2 * PANEL_MARGIN
     grid_height = height - grid_top - PANEL_MARGIN
@@ -210,14 +209,11 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 draw.rectangle(rect, outline=BLACK, width=1)
                 text_color = BLACK
             else:
-                # 4-gray mode: use dark gray background for days with tasks
-                if hours > 0:
-                    bg_color = GRAY_LEVEL_1  # Dark gray for days with tasks
-                    text_color = BLACK
-                else:
-                    bg_color = WHITE
-                    text_color = BLACK
+                # 4-gray mode: use gray background for days with tasks
+                bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
                 draw.rectangle(rect, fill=bg_color, outline=None)
+                # Text color: white for dark gray (GRAY_LEVEL_1), black otherwise
+                text_color = WHITE if bg_color == GRAY_LEVEL_1 else BLACK
             day_label = str(day)
             day_bbox = draw.textbbox((0, 0), day_label, font=fonts['cell'])
             day_text_x = center_x - (day_bbox[2] - day_bbox[0]) / 2
