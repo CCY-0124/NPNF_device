@@ -236,35 +236,40 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
     upcoming_todos = []
     
     for task in todos:
-        # Skip tasks with time (they are shown in the calendar)
-        if task.get('start_time') and task.get('end_time'):
-            continue
-        
-        # Skip completed tasks
-        if task.get('completed', False):
-            continue
-        
         title = task.get('title', 'Untitled')
-        task_date = None
+        if not title or title == 'Untitled':
+            continue
         
-        # Get task date if available
-        if task.get('start_date'):
-            try:
-                task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
-            except:
-                pass
+        # Skip completed tasks (check various possible field names and values)
+        completed = task.get('completed', False) or task.get('is_completed', False) or task.get('status') == 'completed'
+        if completed:
+            continue
         
-        # Categorize tasks
-        if task_date:
-            if task_date == today_date:
-                today_todos.append(title)
-            elif task_date > today_date:
-                upcoming_todos.append(title)
+        # Check if task has both start_time and end_time (scheduled task shown in calendar)
+        has_time = task.get('start_time') and task.get('end_time')
+        
+        # Include tasks without time, or with incomplete time info
+        if not has_time:
+            task_date = None
+            
+            # Get task date if available
+            if task.get('start_date'):
+                try:
+                    task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
+                except:
+                    pass
+            
+            # Categorize tasks
+            if task_date:
+                if task_date == today_date:
+                    today_todos.append(title)
+                elif task_date > today_date:
+                    upcoming_todos.append(title)
+                else:
+                    daily_todos.append(title)
             else:
+                # No date, treat as daily
                 daily_todos.append(title)
-        else:
-            # No date, treat as daily
-            daily_todos.append(title)
     
     sections = [
         ("Daily", daily_todos[:3]),  # Limit to 3 items per section

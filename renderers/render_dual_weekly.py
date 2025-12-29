@@ -318,36 +318,66 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     today_todos = []
     upcoming_todos = []
     
+    # Get all tasks that are shown in calendar (to exclude them from TODO)
+    calendar_task_titles = set()
+    for day_tasks in tasks.values():
+        for task in day_tasks:
+            calendar_task_titles.add(task.get('title', ''))
+    
     for task in todos:
-        # Skip tasks with time (they are shown in the calendar)
-        if task.get('start_time') and task.get('end_time'):
-            continue
-        
-        # Skip completed tasks
-        if task.get('completed', False):
-            continue
-        
         title = task.get('title', 'Untitled')
-        task_date = None
+        if not title or title == 'Untitled':
+            continue
         
-        # Get task date if available
-        if task.get('start_date'):
+        # Skip tasks that are already shown in calendar
+        if title in calendar_task_titles:
+            continue
+        
+        # Skip completed tasks (check various possible field names and values)
+        completed = task.get('completed', False) or task.get('is_completed', False) or task.get('status') == 'completed'
+        if completed:
+            continue
+        
+        # Check if task has both start_time and end_time
+        has_time = task.get('start_time') and task.get('end_time')
+        
+        # If task has time, check if it's in the 8am-12am range
+        # If not in range, include it in TODO
+        if has_time:
             try:
-                task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
+                start_time = task.get('start_time', '')
+                if len(start_time) > 5:
+                    start_time = start_time[:5]
+                start_parts = start_time.split(':')
+                start_h = int(start_parts[0])
+                # If task starts before 8am, include it in TODO
+                if start_h < 8:
+                    has_time = False  # Treat as TODO task
             except:
                 pass
         
-        # Categorize tasks
-        if task_date:
-            if task_date == today_date:
-                today_todos.append(title)
-            elif task_date > today_date:
-                upcoming_todos.append(title)
+        # Include tasks without time, or tasks with time outside 8am-12am range
+        if not has_time:
+            task_date = None
+            
+            # Get task date if available
+            if task.get('start_date'):
+                try:
+                    task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
+                except:
+                    pass
+            
+            # Categorize tasks
+            if task_date:
+                if task_date == today_date:
+                    today_todos.append(title)
+                elif task_date > today_date:
+                    upcoming_todos.append(title)
+                else:
+                    daily_todos.append(title)
             else:
+                # No date, treat as daily
                 daily_todos.append(title)
-        else:
-            # No date, treat as daily
-            daily_todos.append(title)
     
     sections = [
         ("Daily", daily_todos[:3]),  # Limit to 3 items per section
