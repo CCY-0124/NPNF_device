@@ -14,6 +14,7 @@ EPD_HEIGHT = 480
 
 # Layout parameters
 TITLE_FONT_SIZE = 24
+TITLE_PADDING = 15
 MONTH_FONT_SIZE = 12
 CELL_FONT_SIZE = 8
 PANEL_MARGIN = 8
@@ -125,10 +126,10 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     # Title
     bbox = draw.textbbox((0, 0), year_title, font=fonts['title'])
     title_x = (width - (bbox[2] - bbox[0])) // 2
-    draw.text((title_x, PANEL_MARGIN), year_title, font=fonts['title'], fill=BLACK)
+    draw.text((title_x, TITLE_PADDING), year_title, font=fonts['title'], fill=BLACK)
     
     # Grid: 3 rows, 4 columns for 12 months
-    title_height = TITLE_FONT_SIZE + PANEL_MARGIN + 10
+    title_height = TITLE_PADDING + TITLE_FONT_SIZE + 5
     grid_top = title_height
     grid_left = PANEL_MARGIN
     grid_width = width - 2 * PANEL_MARGIN

@@ -14,6 +14,7 @@ EPD_HEIGHT = 480
 
 # Layout parameters
 TITLE_FONT_SIZE = 20
+TITLE_PADDING = 15
 HEADER_FONT_SIZE = 14
 CELL_FONT_SIZE = 14
 PANEL_MARGIN = 8
@@ -120,10 +121,10 @@ def render_monthly_re(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Ima
     # Title
     bbox = draw.textbbox((0, 0), month_title, font=fonts['title'])
     title_x = (width - (bbox[2] - bbox[0])) // 2
-    draw.text((title_x, PANEL_MARGIN), month_title, font=fonts['title'], fill=BLACK)
+    draw.text((title_x, TITLE_PADDING), month_title, font=fonts['title'], fill=BLACK)
     
     # Grid dimensions
-    grid_top = PANEL_MARGIN + TITLE_HEIGHT
+    grid_top = TITLE_PADDING + TITLE_FONT_SIZE + 5
     grid_left = PANEL_MARGIN
     grid_width = width - 2 * PANEL_MARGIN
     grid_height = height - grid_top - PANEL_MARGIN
