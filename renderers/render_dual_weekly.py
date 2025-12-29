@@ -338,17 +338,19 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         if completed:
             continue
         
-        # Check if task has both start_time and end_time
-        has_time = task.get('start_time') and task.get('end_time')
+        # Check if task has valid start_time and end_time (not null, not empty)
+        start_time = task.get('start_time')
+        end_time = task.get('end_time')
+        has_time = start_time and end_time and start_time.strip() and end_time.strip() and start_time != 'null' and end_time != 'null'
         
         # If task has time, check if it's in the 8am-12am range
         # If not in range, include it in TODO
         if has_time:
             try:
-                start_time = task.get('start_time', '')
-                if len(start_time) > 5:
-                    start_time = start_time[:5]
-                start_parts = start_time.split(':')
+                start_time_clean = start_time.strip()
+                if len(start_time_clean) > 5:
+                    start_time_clean = start_time_clean[:5]
+                start_parts = start_time_clean.split(':')
                 start_h = int(start_parts[0])
                 # If task starts before 8am, include it in TODO
                 if start_h < 8:
@@ -357,7 +359,9 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 pass
         
         # Include tasks without time, or tasks with time outside 8am-12am range
-        if not has_time:
+        # Also include tasks where is_schedule is false
+        is_schedule = task.get('is_schedule', True)
+        if not has_time or not is_schedule:
             task_date = None
             
             # Get task date if available

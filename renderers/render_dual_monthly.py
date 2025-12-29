@@ -245,11 +245,16 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         if completed:
             continue
         
-        # Check if task has both start_time and end_time (scheduled task shown in calendar)
-        has_time = task.get('start_time') and task.get('end_time')
+        # Check if task has valid start_time and end_time (not null, not empty)
+        start_time = task.get('start_time')
+        end_time = task.get('end_time')
+        has_time = start_time and end_time and start_time.strip() and end_time.strip() and start_time != 'null' and end_time != 'null'
         
-        # Include tasks without time, or with incomplete time info
-        if not has_time:
+        # Also check is_schedule flag
+        is_schedule = task.get('is_schedule', True)
+        
+        # Include tasks without time, or with incomplete time info, or not scheduled
+        if not has_time or not is_schedule:
             task_date = None
             
             # Get task date if available
