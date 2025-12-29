@@ -14,6 +14,7 @@ EPD_HEIGHT = 480
 
 # Layout parameters
 TITLE_FONT_SIZE = 24
+TITLE_PADDING = 15
 MONTH_FONT_SIZE = 12
 CELL_FONT_SIZE = 8
 PANEL_MARGIN = 8
@@ -31,7 +32,6 @@ FONT_PATHS = {
 WHITE = 255
 BLACK = 0
 GRAY_LEVEL_3 = 192
-GRAY_LEVEL_3 = 128
 
 def days_in_month(dt):
     """Get number of days in a month"""
@@ -97,11 +97,12 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     
     Args:
         data: {'todos': [...]} - Task data from API
-        config: Device configuration
+        config: Device configuration with 'display_mode' ('4gray' or 'bw')
     
     Returns:
         PIL Image ready for display
     """
+    display_mode = config.get('display_mode', '4gray')  # Default to 4-gray mode
     todos = data.get('todos', [])
     today = datetime.now()
     year = today.year
@@ -124,11 +125,10 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     # Title
     bbox = draw.textbbox((0, 0), year_title, font=fonts['title'])
     title_x = (width - (bbox[2] - bbox[0])) // 2
-    draw.text((title_x, PANEL_MARGIN), year_title, font=fonts['title'], fill=BLACK)
+    draw.text((title_x, TITLE_PADDING), year_title, font=fonts['title'], fill=BLACK)
     
     # Grid: 3 rows, 4 columns for 12 months
-    title_height = TITLE_FONT_SIZE + PANEL_MARGIN + 10
-    grid_top = title_height
+    grid_top = TITLE_PADDING + TITLE_FONT_SIZE + 5
     grid_left = PANEL_MARGIN
     grid_width = width - 2 * PANEL_MARGIN
     grid_height = height - grid_top - PANEL_MARGIN
@@ -202,11 +202,26 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 int(center_y + cell_size / 2)
             ]
             
-            bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
-            draw.rectangle(rect, fill=bg_color, outline=None)
+            # Draw calendar cell based on mode
+            if display_mode == 'bw':
+                # Black and white mode: use black text, add frame if has tasks
+                text_color = BLACK
+                if hours > 0:
+                    # Draw frame outside the date cell
+                    frame_rect = [
+                        rect[0] - 2,
+                        rect[1] - 2,
+                        rect[2] + 2,
+                        rect[3] + 2
+                    ]
+                    draw.rectangle(frame_rect, outline=BLACK, width=1)
+            else:
+                # 4-gray mode: use gray background for days with tasks
+                bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
+                draw.rectangle(rect, fill=bg_color, outline=None)
+                text_color = BLACK
             
             # Day number
-            text_color = WHITE if bg_color == GRAY_LEVEL_3 else BLACK
             day_label = str(day)
             day_bbox = draw.textbbox((0, 0), day_label, font=fonts['cell'])
             day_text_x = center_x - (day_bbox[2] - day_bbox[0]) / 2
