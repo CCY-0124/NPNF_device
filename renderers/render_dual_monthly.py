@@ -242,6 +242,9 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
     today_todos = []
     upcoming_todos = []
     
+    # Track seen tasks to avoid duplicates (especially for recurring tasks)
+    seen_titles = set()
+    
     for task in todos:
         title = task.get('title', 'Untitled')
         if not title or title == 'Untitled':
@@ -265,6 +268,13 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         # Include non-scheduled tasks
         # Categorize by section first, then by date
         section = task.get('section', '').lower()
+        is_recurring = task.get('is_recurring', False)
+        
+        # For recurring tasks, only show once (use parent_task_id if available, otherwise use title)
+        task_key = task.get('parent_task_id', title) if is_recurring else title
+        if task_key in seen_titles:
+            continue
+        seen_titles.add(task_key)
         
         if section == 'daily':
             daily_todos.append(title)
