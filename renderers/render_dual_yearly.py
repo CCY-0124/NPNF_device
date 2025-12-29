@@ -119,7 +119,7 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     
     width = EPD_WIDTH
     height = EPD_HEIGHT
-    image = Image.new('L', (width, height), GRAY_LEVEL_1)  # Dark gray background
+    image = Image.new('L', (width, height), WHITE)
     draw = ImageDraw.Draw(image)
     
     # Title
@@ -209,10 +209,14 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 draw.rectangle(rect, outline=BLACK, width=1)
                 text_color = BLACK
             else:
-                # 4-gray mode: use fill only (like before)
-                bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
+                # 4-gray mode: use dark gray background for days with tasks
+                if hours > 0:
+                    bg_color = GRAY_LEVEL_1  # Dark gray for days with tasks
+                    text_color = WHITE
+                else:
+                    bg_color = WHITE
+                    text_color = BLACK
                 draw.rectangle(rect, fill=bg_color, outline=None)
-                text_color = WHITE if bg_color == GRAY_LEVEL_3 else BLACK
             day_label = str(day)
             day_bbox = draw.textbbox((0, 0), day_label, font=fonts['cell'])
             day_text_x = center_x - (day_bbox[2] - day_bbox[0]) / 2
