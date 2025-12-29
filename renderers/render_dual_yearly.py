@@ -210,7 +210,7 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 text_color = BLACK
             else:
                 # 4-gray mode: use gray background for days with tasks
-                bg_color = GRAY_LEVEL_3 if hours > 0 else WHITE
+                bg_color = GRAY_LEVEL_1 if hours > 0 else WHITE
                 draw.rectangle(rect, fill=bg_color, outline=None)
                 # Text color: white for dark gray (GRAY_LEVEL_1), black otherwise
                 text_color = WHITE if bg_color == GRAY_LEVEL_1 else BLACK
