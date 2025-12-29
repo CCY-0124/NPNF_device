@@ -336,9 +336,18 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         if title in calendar_task_titles:
             continue
         
+        # Skip deleted tasks
+        if task.get('deleted_at'):
+            continue
+        
         # Skip completed tasks
         completed = task.get('completed', False) or task.get('is_completed', False) or task.get('status') == 'completed'
         if completed:
+            continue
+        
+        # Skip recurring task instances (they have instance_date and parent_task_id)
+        # The web doesn't show these instances, so we shouldn't either
+        if task.get('instance_date') and task.get('parent_task_id'):
             continue
         
         # Check if task is scheduled (is_schedule = true with valid time)
@@ -364,13 +373,11 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         # Include non-scheduled tasks or scheduled tasks outside 8am-12am range
         # Categorize by section first, then by date
         section = task.get('section', '').lower()
-        is_recurring = task.get('is_recurring', False)
         
-        # For recurring tasks, only show once (use parent_task_id if available, otherwise use title)
-        task_key = task.get('parent_task_id', title) if is_recurring else title
-        if task_key in seen_titles:
+        # Deduplicate by title (instances are already filtered out above)
+        if title in seen_titles:
             continue
-        seen_titles.add(task_key)
+        seen_titles.add(title)
         
         if section == 'daily':
             daily_todos.append(title)
