@@ -199,11 +199,16 @@ def update_display():
         config = data.get('config', {})
         todos = data.get('todos', [])
         
+        # Debug: print config to see what we're getting from API
+        print(f"  Config from API: {config}")
+        
         # Get display_mode from config (default to '4gray' if not specified)
         display_mode = config.get('display_mode', '4gray')
+        print(f"  Raw display_mode from config: '{display_mode}'")
         if display_mode not in ['4gray', 'bw']:
             print(f"  Warning: Invalid display_mode '{display_mode}', defaulting to '4gray'")
             display_mode = '4gray'
+        print(f"  Using display_mode: '{display_mode}'")
         
         # Check if display mode changed and reinitialize if needed
         if current_display_mode is not None and current_display_mode != display_mode:
