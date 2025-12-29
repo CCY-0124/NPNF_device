@@ -165,8 +165,11 @@ def render_monthly_square(data: Dict[str, Any], config: Dict[str, Any]) -> Image
         
         # Draw calendar cell based on mode
         if display_mode == 'bw':
-            # Black and white mode: use outline only
-            draw.rectangle(rect, outline=BLACK, width=1)
+            # Black and white mode: fill with black if has tasks
+            if hours > 0:
+                draw.rectangle(rect, fill=BLACK, outline=BLACK, width=1)
+            else:
+                draw.rectangle(rect, outline=BLACK, width=1)
         else:
             # 4-gray mode: use fill only (like before)
             draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=None)
@@ -174,10 +177,13 @@ def render_monthly_square(data: Dict[str, Any], config: Dict[str, Any]) -> Image
         # Day number
         day_label = str(day)
         bbox = draw.textbbox((0, 0), day_label, font=fonts['cell'])
-        draw.text((rect[0] + 4, rect[1] + 2), day_label, font=fonts['cell'], fill=BLACK)
+        # In bw mode, use white text if cell is filled with black
+        text_color = WHITE if (display_mode == 'bw' and hours > 0) else BLACK
+        draw.text((rect[0] + 4, rect[1] + 2), day_label, font=fonts['cell'], fill=text_color)
         
         # Hours as squares (2 per row)
-        if hours > 0:
+        # In bw mode, if cell is already filled with black, don't draw hour squares
+        if hours > 0 and not (display_mode == 'bw' and hours > 0):
             rounded_hours = round(hours * 2) / 2.0
             total_squares = int(rounded_hours * 2)
             

@@ -182,8 +182,11 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         
         # Draw calendar cell based on mode
         if display_mode == 'bw':
-            # Black and white mode: use outline only
-            draw.rectangle(rect, outline=BLACK, width=1)
+            # Black and white mode: fill with black if has tasks
+            if hours > 0:
+                draw.rectangle(rect, fill=BLACK, outline=BLACK, width=1)
+            else:
+                draw.rectangle(rect, outline=BLACK, width=1)
         else:
             # 4-gray mode: use fill only (like before)
             draw.rectangle(rect, fill=GRAY_LEVEL_3, outline=None)
@@ -191,7 +194,9 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         # Day number
         day_label = str(day)
         bbox = draw.textbbox((0, 0), day_label, font=fonts['cell'])
-        draw.text((rect[0] + 4, rect[1] + 2), day_label, font=fonts['cell'], fill=BLACK)
+        # In bw mode, use white text if cell is filled with black
+        text_color = WHITE if (display_mode == 'bw' and hours > 0) else BLACK
+        draw.text((rect[0] + 4, rect[1] + 2), day_label, font=fonts['cell'], fill=text_color)
         
         # Hours as stacked rectangles
         if hours > 0:
@@ -205,17 +210,19 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
             start_x = rect[2] - 6
             bottom_y = rect[3] - 4
             
-            for i in range(num_full_rects):
-                y_bottom = bottom_y - i * (rect_height + rect_spacing)
-                y_top = y_bottom - rect_height
-                hour_rect = [start_x - rect_width, y_top, start_x, y_bottom]
-                draw.rectangle(hour_rect, fill=BLACK, outline=None)
-            
-            if has_half:
-                y_bottom = bottom_y - num_full_rects * (rect_height + rect_spacing)
-                y_top = y_bottom - rect_height
-                hour_rect = [start_x - rect_width // 2, y_top, start_x, y_bottom]
-                draw.rectangle(hour_rect, fill=BLACK, outline=None)
+            # In bw mode, if cell is already filled with black, don't draw hour rectangles
+            if not (display_mode == 'bw' and hours > 0):
+                for i in range(num_full_rects):
+                    y_bottom = bottom_y - i * (rect_height + rect_spacing)
+                    y_top = y_bottom - rect_height
+                    hour_rect = [start_x - rect_width, y_top, start_x, y_bottom]
+                    draw.rectangle(hour_rect, fill=BLACK, outline=None)
+                
+                if has_half:
+                    y_bottom = bottom_y - num_full_rects * (rect_height + rect_spacing)
+                    y_top = y_bottom - rect_height
+                    hour_rect = [start_x - rect_width // 2, y_top, start_x, y_bottom]
+                    draw.rectangle(hour_rect, fill=BLACK, outline=None)
     
     # Right panel: TODO square and date
     available_height = height - (HEADER_HEIGHT + TITLE_PADDING + TITLE_FONT_SIZE + 5) - PANEL_MARGIN
