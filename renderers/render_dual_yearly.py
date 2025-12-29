@@ -213,7 +213,7 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
                 # 4-gray mode: use dark gray background for days with tasks
                 if hours > 0:
                     bg_color = GRAY_LEVEL_1  # Dark gray for days with tasks
-                    text_color = WHITE
+                    text_color = BLACK
                 else:
                     bg_color = WHITE
                     text_color = BLACK
