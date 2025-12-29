@@ -236,7 +236,6 @@ def render_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Image:
             except:
                 continue
             
-            gray_level = get_gray_level(duration_hours)
             start_slot = time_to_slot_index(start_time)
             end_slot = time_to_slot_index(end_time)
             
