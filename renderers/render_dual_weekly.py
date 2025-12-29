@@ -78,6 +78,16 @@ def transform_tasks_to_weekly_format(api_todos: List[Dict], week_start_date: dat
         if len(end_time) > 5:
             end_time = end_time[:5]
         
+        # Filter tasks: only include tasks within 8am-12pm (08:00-12:00)
+        try:
+            start_parts = start_time.split(':')
+            start_h = int(start_parts[0])
+            # Skip tasks that start before 8am or after 12pm
+            if start_h < 8 or start_h >= 12:
+                continue
+        except:
+            continue
+        
         tasks_by_day[day_name].append({
             'start_time': start_time,
             'end_time': end_time,
