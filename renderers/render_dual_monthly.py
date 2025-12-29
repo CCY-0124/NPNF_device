@@ -240,31 +240,40 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         if not title or title == 'Untitled':
             continue
         
-        # Skip completed tasks (check various possible field names and values)
+        # Skip completed tasks
         completed = task.get('completed', False) or task.get('is_completed', False) or task.get('status') == 'completed'
         if completed:
             continue
         
-        # Check if task has valid start_time and end_time (not null, not empty)
+        # Check if task is scheduled (is_schedule = true with valid time)
+        is_schedule = task.get('is_schedule', False)
         start_time = task.get('start_time')
         end_time = task.get('end_time')
         has_time = start_time and end_time and start_time.strip() and end_time.strip() and start_time != 'null' and end_time != 'null'
         
-        # Also check is_schedule flag
-        is_schedule = task.get('is_schedule', True)
+        # Scheduled tasks with time are shown in calendar, skip them
+        if is_schedule and has_time:
+            continue
         
-        # Include tasks without time, or with incomplete time info, or not scheduled
-        if not has_time or not is_schedule:
+        # Include non-scheduled tasks
+        # Categorize by section first, then by date
+        section = task.get('section', '').lower()
+        
+        if section == 'daily':
+            daily_todos.append(title)
+        elif section == 'today':
+            today_todos.append(title)
+        elif section == 'upcoming':
+            upcoming_todos.append(title)
+        else:
+            # No section, categorize by date
             task_date = None
-            
-            # Get task date if available
             if task.get('start_date'):
                 try:
                     task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
                 except:
                     pass
             
-            # Categorize tasks
             if task_date:
                 if task_date == today_date:
                     today_todos.append(title)
