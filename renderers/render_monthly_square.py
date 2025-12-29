@@ -187,7 +187,7 @@ def render_monthly_square(data: Dict[str, Any], config: Dict[str, Any]) -> Image
             rounded_hours = round(hours * 2) / 2.0
             total_squares = int(rounded_hours * 2)
             
-            square_size = 5
+            square_size = 4
             spacing = 2
             row_spacing = 2
             start_x = rect[2] - 6
