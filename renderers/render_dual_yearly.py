@@ -30,6 +30,7 @@ FONT_PATHS = {
 # Colors
 WHITE = 255
 BLACK = 0
+GRAY_LEVEL_1 = 80  # Dark gray for background
 GRAY_LEVEL_3 = 192
 
 def days_in_month(dt):
@@ -118,7 +119,7 @@ def render_dual_yearly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     
     width = EPD_WIDTH
     height = EPD_HEIGHT
-    image = Image.new('L', (width, height), WHITE)
+    image = Image.new('L', (width, height), GRAY_LEVEL_1)  # Dark gray background
     draw = ImageDraw.Draw(image)
     
     # Title
