@@ -318,7 +318,9 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
     today_todos = []
     upcoming_todos = []
     
-    # Track seen tasks to avoid duplicates (especially for recurring tasks)
+    # Track seen tasks to avoid duplicates
+    # For daily tasks, use parent_task_id; for others, use title
+    seen_daily_parent_ids = set()
     seen_titles = set()
     
     # Get all tasks that are shown in calendar (to exclude them from TODO)
@@ -345,9 +347,13 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         if completed:
             continue
         
-        # Skip recurring task instances (they have instance_date and parent_task_id)
-        # The web doesn't show these instances, so we shouldn't either
-        if task.get('instance_date') and task.get('parent_task_id'):
+        # Check section early to determine if this is a daily task
+        section = task.get('section', '').lower()
+        is_daily_task = (section == 'daily')
+        
+        # For non-daily tasks, skip recurring task instances (they have instance_date and parent_task_id)
+        # For daily tasks, we want to include instances but deduplicate by parent_task_id
+        if not is_daily_task and task.get('instance_date') and task.get('parent_task_id'):
             continue
         
         # Check if task is scheduled (is_schedule = true with valid time)
@@ -372,12 +378,25 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         
         # Include non-scheduled tasks or scheduled tasks outside 8am-12am range
         # Categorize by section first, then by date
-        section = task.get('section', '').lower()
         
-        # Deduplicate by title (instances are already filtered out above)
-        if title in seen_titles:
-            continue
-        seen_titles.add(title)
+        # Deduplicate: for daily tasks, use parent_task_id; for others, use title
+        if is_daily_task:
+            # For daily tasks, use parent_task_id for deduplication
+            parent_id = task.get('parent_task_id')
+            if parent_id:
+                if parent_id in seen_daily_parent_ids:
+                    continue
+                seen_daily_parent_ids.add(parent_id)
+            else:
+                # Fallback to title if no parent_id
+                if title in seen_titles:
+                    continue
+                seen_titles.add(title)
+        else:
+            # For non-daily tasks, use title for deduplication
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
         
         if section == 'daily':
             daily_todos.append(title)
