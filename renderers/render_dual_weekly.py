@@ -334,10 +334,6 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         if not title or title == 'Untitled':
             continue
         
-        # Skip tasks that are already shown in calendar
-        if title in calendar_task_titles:
-            continue
-        
         # Skip deleted tasks
         if task.get('deleted_at'):
             continue
@@ -350,6 +346,10 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         # Check section early to determine if this is a daily task
         section = task.get('section', '').lower()
         is_daily_task = (section == 'daily')
+        
+        # Skip tasks that are already shown in calendar (but not daily tasks, as they don't have time)
+        if not is_daily_task and title in calendar_task_titles:
+            continue
         
         # For non-daily tasks, skip recurring task instances (they have instance_date and parent_task_id)
         # For daily tasks, we want to include instances but deduplicate by parent_task_id
