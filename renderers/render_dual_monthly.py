@@ -322,13 +322,16 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         elif not is_daily_task and task.get('instance_date') and task.get('parent_task_id'):
             continue
         
-        # Check if task is scheduled (is_schedule = true with valid time)
+        # Separate TODO tasks from scheduled tasks using is_schedule
+        # TODO tasks: is_schedule = false OR no time
+        # Scheduled tasks: is_schedule = true AND has time (shown in calendar if in current month)
+        
         is_schedule = task.get('is_schedule', False)
         start_time = task.get('start_time')
         end_time = task.get('end_time')
         has_time = start_time and end_time and start_time.strip() and end_time.strip() and start_time != 'null' and end_time != 'null'
         
-        # Check if task is in current month for calendar display
+        # Parse task date for checking if it's in current month
         task_date = None
         if task.get('start_date'):
             try:
@@ -336,13 +339,12 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
             except:
                 pass
         
-        # Scheduled tasks with time are shown in calendar, skip them
-        # BUT: if task has section "upcoming" or is outside current month, include it in TODO
+        # Handle scheduled tasks (is_schedule = true AND has time)
         if is_schedule and has_time:
-            # For upcoming section tasks, always show in TODO
+            # Scheduled tasks with section "upcoming" should always show in TODO
             if section == 'upcoming':
-                pass  # Don't skip, show in TODO
-            # For tasks outside current month, show in TODO even if scheduled
+                pass  # Include in TODO
+            # Scheduled tasks in current month are shown in calendar, skip from TODO
             elif task_date:
                 # Check if task is in current month
                 today_first = today_date.replace(day=1)
@@ -354,14 +356,14 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
                 month_start = today_first
                 month_end = today_first.replace(day=last_day)
                 
-                if task_date < month_start or task_date > month_end:
-                    pass  # Task is outside current month, show in TODO
-                else:
+                if month_start <= task_date <= month_end:
                     continue  # Task is in current month calendar, skip from TODO
+                # Task is outside current month, include in TODO
             else:
-                continue  # No date, skip scheduled tasks with time
+                # Scheduled task with no date, skip from TODO (can't show in calendar)
+                continue
         
-        # Include non-scheduled tasks
+        # All remaining tasks are TODO tasks (is_schedule = false OR no time)
         # Categorize by section first, then by date
         
         # Deduplicate: for daily tasks, use parent_task_id; for others, use title

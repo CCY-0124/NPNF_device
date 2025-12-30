@@ -408,13 +408,16 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         elif not is_daily_task and task.get('instance_date') and task.get('parent_task_id'):
             continue
         
-        # Check if task is scheduled (is_schedule = true with valid time)
+        # Separate TODO tasks from scheduled tasks using is_schedule
+        # TODO tasks: is_schedule = false OR no time
+        # Scheduled tasks: is_schedule = true AND has time (shown in calendar if in current week and 8am-12am)
+        
         is_schedule = task.get('is_schedule', False)
         start_time = task.get('start_time')
         end_time = task.get('end_time')
         has_time = start_time and end_time and start_time.strip() and end_time.strip() and start_time != 'null' and end_time != 'null'
         
-        # Check if task is in current week for calendar display
+        # Parse task date for checking if it's in current week
         task_date = None
         if task.get('start_date'):
             try:
@@ -422,49 +425,38 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
             except:
                 pass
         
-        # Scheduled tasks with time in 8am-12am range are shown in calendar, skip them
-        # BUT: if task has section "upcoming" or is outside current week, include it in TODO
+        # Handle scheduled tasks (is_schedule = true AND has time)
         if is_schedule and has_time:
-            # For upcoming section tasks, always show in TODO
+            # Scheduled tasks with section "upcoming" should always show in TODO
             if section == 'upcoming':
-                pass  # Don't skip, show in TODO
-            # For tasks outside current week, show in TODO even if scheduled
+                pass  # Include in TODO
+            # Scheduled tasks in current week with 8am-12am time are shown in calendar, skip from TODO
             elif task_date:
                 # Check if task is in current week
                 days_since_monday = today_date.weekday()
                 week_start = today_date - timedelta(days=days_since_monday)
                 week_end = week_start + timedelta(days=6)
                 
-                if task_date < week_start or task_date > week_end:
-                    pass  # Task is outside current week, show in TODO
-                else:
-                    # Task is in current week, check time range
+                if week_start <= task_date <= week_end:
+                    # Task is in current week, check if time is in 8am-12am range
                     try:
                         start_time_clean = start_time.strip()
                         if len(start_time_clean) > 5:
                             start_time_clean = start_time_clean[:5]
                         start_parts = start_time_clean.split(':')
                         start_h = int(start_parts[0])
-                        # If task is in 8am-12am range, it's shown in calendar, skip
+                        # If task is in 8am-12am range, it's shown in calendar, skip from TODO
                         if start_h >= 8:
                             continue
                     except:
                         pass
+                    # Task is in current week but outside 8am-12am, include in TODO
+                # Task is outside current week, include in TODO
             else:
-                # No date, check time range for current week tasks
-                try:
-                    start_time_clean = start_time.strip()
-                    if len(start_time_clean) > 5:
-                        start_time_clean = start_time_clean[:5]
-                    start_parts = start_time_clean.split(':')
-                    start_h = int(start_parts[0])
-                    # If task is in 8am-12am range, it's shown in calendar, skip
-                    if start_h >= 8:
-                        continue
-                except:
-                    pass
+                # Scheduled task with no date, skip from TODO (can't show in calendar)
+                continue
         
-        # Include non-scheduled tasks or scheduled tasks outside 8am-12am range
+        # All remaining tasks are TODO tasks (is_schedule = false OR no time)
         # Categorize by section first, then by date
         
         # Deduplicate: for daily tasks, use parent_task_id; for others, use title
