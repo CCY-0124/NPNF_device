@@ -247,6 +247,45 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
     seen_daily_parent_ids = set()
     seen_titles = set()
     
+    # Track daily task parent_ids and their valid instances
+    # If all instances of a parent are deleted, don't show the task
+    daily_parent_instances = {}  # parent_id -> list of (instance_date, deleted_at)
+    
+    # First pass: collect all daily task instances to check if parent is deleted
+    for task in todos:
+        section = task.get('section', '').lower()
+        if section == 'daily' and task.get('parent_task_id'):
+            parent_id = task.get('parent_task_id')
+            instance_date = task.get('instance_date')
+            deleted_at = task.get('deleted_at')
+            if parent_id not in daily_parent_instances:
+                daily_parent_instances[parent_id] = []
+            daily_parent_instances[parent_id].append({
+                'instance_date': instance_date,
+                'deleted_at': deleted_at,
+                'task': task
+            })
+    
+    # Check which parent tasks should be shown (have at least one valid instance for today or future)
+    valid_daily_parent_ids = set()
+    for parent_id, instances in daily_parent_instances.items():
+        has_valid_future_instance = False
+        for instance in instances:
+            # Skip if instance is deleted
+            if instance['deleted_at']:
+                continue
+            # Check if instance_date is today or future
+            if instance['instance_date']:
+                try:
+                    instance_date = datetime.strptime(instance['instance_date'], '%Y-%m-%d').date()
+                    if instance_date >= today_date:
+                        has_valid_future_instance = True
+                        break
+                except:
+                    pass
+        if has_valid_future_instance:
+            valid_daily_parent_ids.add(parent_id)
+    
     for task in todos:
         title = task.get('title', 'Untitled')
         if not title or title == 'Untitled':
@@ -267,8 +306,12 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         
         # For non-daily tasks, skip recurring task instances (they have instance_date and parent_task_id)
         # For daily tasks, we want to include instances but deduplicate by parent_task_id
-        # Also, only show daily task instances for today or future dates
+        # Also, only show daily task instances for today or future dates, and only if parent has valid instances
         if is_daily_task and task.get('instance_date') and task.get('parent_task_id'):
+            parent_id = task.get('parent_task_id')
+            # Skip if parent task has no valid future instances (all deleted or all past)
+            if parent_id not in valid_daily_parent_ids:
+                continue
             # For daily tasks with instance_date, only show if instance_date is today or future
             try:
                 instance_date = datetime.strptime(task['instance_date'], '%Y-%m-%d').date()
