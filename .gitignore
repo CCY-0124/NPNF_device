@@ -1,5 +1,7 @@
 # Ignore all markdown files
 *.md
+# Except setup guide
+!SETUP_GUIDE.md
 
 # Python
 __pycache__/
