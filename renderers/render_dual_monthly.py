@@ -328,9 +328,38 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         end_time = task.get('end_time')
         has_time = start_time and end_time and start_time.strip() and end_time.strip() and start_time != 'null' and end_time != 'null'
         
+        # Check if task is in current month for calendar display
+        task_date = None
+        if task.get('start_date'):
+            try:
+                task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
+            except:
+                pass
+        
         # Scheduled tasks with time are shown in calendar, skip them
+        # BUT: if task has section "upcoming" or is outside current month, include it in TODO
         if is_schedule and has_time:
-            continue
+            # For upcoming section tasks, always show in TODO
+            if section == 'upcoming':
+                pass  # Don't skip, show in TODO
+            # For tasks outside current month, show in TODO even if scheduled
+            elif task_date:
+                # Check if task is in current month
+                today_first = today_date.replace(day=1)
+                if today_first.month == 12:
+                    next_month = today_first.replace(year=today_first.year + 1, month=1)
+                else:
+                    next_month = today_first.replace(month=today_first.month + 1)
+                last_day = (next_month - timedelta(days=1)).day
+                month_start = today_first
+                month_end = today_first.replace(day=last_day)
+                
+                if task_date < month_start or task_date > month_end:
+                    pass  # Task is outside current month, show in TODO
+                else:
+                    continue  # Task is in current month calendar, skip from TODO
+            else:
+                continue  # No date, skip scheduled tasks with time
         
         # Include non-scheduled tasks
         # Categorize by section first, then by date
@@ -362,8 +391,8 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
             upcoming_todos.append(title)
         else:
             # No section, categorize by date
-            task_date = None
-            if task.get('start_date'):
+            # Reuse task_date if already parsed, otherwise parse it
+            if task_date is None and task.get('start_date'):
                 try:
                     task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
                 except:

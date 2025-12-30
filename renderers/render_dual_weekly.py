@@ -414,19 +414,55 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         end_time = task.get('end_time')
         has_time = start_time and end_time and start_time.strip() and end_time.strip() and start_time != 'null' and end_time != 'null'
         
-        # Scheduled tasks with time in 8am-12am range are shown in calendar, skip them
-        if is_schedule and has_time:
+        # Check if task is in current week for calendar display
+        task_date = None
+        if task.get('start_date'):
             try:
-                start_time_clean = start_time.strip()
-                if len(start_time_clean) > 5:
-                    start_time_clean = start_time_clean[:5]
-                start_parts = start_time_clean.split(':')
-                start_h = int(start_parts[0])
-                # If task is in 8am-12am range, it's shown in calendar, skip
-                if start_h >= 8:
-                    continue
+                task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
             except:
                 pass
+        
+        # Scheduled tasks with time in 8am-12am range are shown in calendar, skip them
+        # BUT: if task has section "upcoming" or is outside current week, include it in TODO
+        if is_schedule and has_time:
+            # For upcoming section tasks, always show in TODO
+            if section == 'upcoming':
+                pass  # Don't skip, show in TODO
+            # For tasks outside current week, show in TODO even if scheduled
+            elif task_date:
+                # Check if task is in current week
+                days_since_monday = today_date.weekday()
+                week_start = today_date - timedelta(days=days_since_monday)
+                week_end = week_start + timedelta(days=6)
+                
+                if task_date < week_start or task_date > week_end:
+                    pass  # Task is outside current week, show in TODO
+                else:
+                    # Task is in current week, check time range
+                    try:
+                        start_time_clean = start_time.strip()
+                        if len(start_time_clean) > 5:
+                            start_time_clean = start_time_clean[:5]
+                        start_parts = start_time_clean.split(':')
+                        start_h = int(start_parts[0])
+                        # If task is in 8am-12am range, it's shown in calendar, skip
+                        if start_h >= 8:
+                            continue
+                    except:
+                        pass
+            else:
+                # No date, check time range for current week tasks
+                try:
+                    start_time_clean = start_time.strip()
+                    if len(start_time_clean) > 5:
+                        start_time_clean = start_time_clean[:5]
+                    start_parts = start_time_clean.split(':')
+                    start_h = int(start_parts[0])
+                    # If task is in 8am-12am range, it's shown in calendar, skip
+                    if start_h >= 8:
+                        continue
+                except:
+                    pass
         
         # Include non-scheduled tasks or scheduled tasks outside 8am-12am range
         # Categorize by section first, then by date
@@ -458,8 +494,8 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
             upcoming_todos.append(title)
         else:
             # No section, categorize by date
-            task_date = None
-            if task.get('start_date'):
+            # Reuse task_date if already parsed, otherwise parse it
+            if task_date is None and task.get('start_date'):
                 try:
                     task_date = datetime.strptime(task['start_date'], '%Y-%m-%d').date()
                 except:
