@@ -397,6 +397,8 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
             today_todos.append(title)
         elif section == 'upcoming':
             upcoming_todos.append(title)
+            # Debug: print to help diagnose
+            print(f"[DEBUG] Added upcoming task: {title}, section={section}, is_schedule={is_schedule}")
         else:
             # No section, categorize by date
             # Reuse task_date if already parsed, otherwise parse it
