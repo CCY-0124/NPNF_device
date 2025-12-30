@@ -301,7 +301,12 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
             continue
         
         # Check section early to determine if this is a daily task
-        section = task.get('section', '').lower()
+        # Handle None, empty string, or string values
+        section_raw = task.get('section')
+        if section_raw is None:
+            section = ''
+        else:
+            section = str(section_raw).lower().strip()
         is_daily_task = (section == 'daily')
         
         # For non-daily tasks, skip recurring task instances (they have instance_date and parent_task_id)
@@ -385,6 +390,7 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
                 continue
             seen_titles.add(title)
         
+        # Categorize by section - section takes priority over date-based categorization
         if section == 'daily':
             daily_todos.append(title)
         elif section == 'today':
