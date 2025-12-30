@@ -267,7 +267,16 @@ def render_dual_monthly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.I
         
         # For non-daily tasks, skip recurring task instances (they have instance_date and parent_task_id)
         # For daily tasks, we want to include instances but deduplicate by parent_task_id
-        if not is_daily_task and task.get('instance_date') and task.get('parent_task_id'):
+        # Also, only show daily task instances for today or future dates
+        if is_daily_task and task.get('instance_date') and task.get('parent_task_id'):
+            # For daily tasks with instance_date, only show if instance_date is today or future
+            try:
+                instance_date = datetime.strptime(task['instance_date'], '%Y-%m-%d').date()
+                if instance_date < today_date:
+                    continue  # Skip past instances
+            except:
+                pass  # If parsing fails, continue with the task
+        elif not is_daily_task and task.get('instance_date') and task.get('parent_task_id'):
             continue
         
         # Check if task is scheduled (is_schedule = true with valid time)
