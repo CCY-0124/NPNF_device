@@ -57,7 +57,15 @@ def fetch_device_data(device_token, start_date, end_date):
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        
+        # Debug: print full JSON response
+        print(f"[API Response] URL: {url}")
+        print(f"[API Response] Params: {params}")
+        print(f"[API Response] Full JSON:")
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        
+        return data
     except requests.RequestException as e:
         print(f"Error fetching data: {e}")
         if hasattr(e, 'response') and e.response is not None:
@@ -66,6 +74,7 @@ def fetch_device_data(device_token, start_date, end_date):
                 print(f"Error details: {error_data}")
             except:
                 print(f"Response status: {e.response.status_code}")
+                print(f"Response text: {e.response.text}")
         return None
 
 def get_weekly_data(device_token, week_start_date=None):
