@@ -386,10 +386,6 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         section = task.get('section', '').lower()
         is_daily_task = (section == 'daily')
         
-        # Skip tasks that are already shown in calendar (but not daily tasks, as they don't have time)
-        if not is_daily_task and title in calendar_task_titles:
-            continue
-        
         # For non-daily tasks, skip recurring task instances (they have instance_date and parent_task_id)
         # For daily tasks, we want to include instances but deduplicate by parent_task_id
         # Also, only show daily task instances for today or future dates, and only if parent has valid instances
@@ -427,6 +423,11 @@ def render_dual_weekly(data: Dict[str, Any], config: Dict[str, Any]) -> Image.Im
         
         # Handle scheduled tasks (is_schedule = true AND has time)
         if is_schedule and has_time:
+            # Skip scheduled tasks that are already shown in calendar (by title match)
+            # Only check for scheduled tasks, not TODO tasks
+            if not is_daily_task and title in calendar_task_titles:
+                continue
+            
             # Scheduled tasks with section "upcoming" should always show in TODO
             if section == 'upcoming':
                 pass  # Include in TODO
