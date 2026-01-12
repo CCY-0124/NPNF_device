@@ -1,0 +1,27 @@
+[Unit]
+Description=E-ink Display Service for NoPlanNoFuture
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/eink
+Environment="EINK_DEVICE_TOKEN=your_device_token_here"
+Environment="EINK_POLL_INTERVAL=60"
+ExecStart=/usr/bin/python3 /home/pi/eink/eink_service.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
+
+
+
+
+

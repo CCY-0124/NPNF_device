@@ -172,32 +172,52 @@ echo
 echo "Step 6: Setting up systemd service..."
 echo "-----------------------------------"
 
-# Update service file with device token
+# Create or update service file
 if [ -f "eink.service" ]; then
-    # Create a temporary service file with updated values
+    # Use existing service file
     TEMP_SERVICE=$(mktemp)
     cp eink.service "$TEMP_SERVICE"
-    
-    # Update service file
-    sed -i "s|Environment=\"EINK_DEVICE_TOKEN=.*\"|Environment=\"EINK_DEVICE_TOKEN=$DEVICE_TOKEN\"|" "$TEMP_SERVICE"
-    sed -i "s|WorkingDirectory=.*|WorkingDirectory=$EINK_DIR|" "$TEMP_SERVICE"
-    sed -i "s|ExecStart=.*|ExecStart=/usr/bin/python3 $EINK_DIR/eink_service.py|" "$TEMP_SERVICE"
-    sed -i "s|^User=.*|User=$CURRENT_USER|" "$TEMP_SERVICE"
-    
-    # Copy to systemd
-    sudo cp "$TEMP_SERVICE" /etc/systemd/system/eink.service
-    rm "$TEMP_SERVICE"
-    sudo systemctl daemon-reload
-    
-    echo "Service file installed with:"
-    echo "  User: $CURRENT_USER"
-    echo "  WorkingDirectory: $EINK_DIR"
-    echo "  Device Token: ${DEVICE_TOKEN:0:8}..."
 else
-    echo "Error: eink.service not found in $EINK_DIR!"
-    echo "Please make sure eink.service is in the project directory."
-    exit 1
+    # Create service file from template
+    echo "Creating eink.service file..."
+    TEMP_SERVICE=$(mktemp)
+    cat > "$TEMP_SERVICE" << EOF
+[Unit]
+Description=E-ink Display Service for NoPlanNoFuture
+After=network.target
+
+[Service]
+Type=simple
+User=$CURRENT_USER
+WorkingDirectory=$EINK_DIR
+Environment="EINK_DEVICE_TOKEN=$DEVICE_TOKEN"
+Environment="EINK_POLL_INTERVAL=60"
+ExecStart=/usr/bin/python3 $EINK_DIR/eink_service.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
 fi
+
+# Update service file with current values
+sed -i "s|Environment=\"EINK_DEVICE_TOKEN=.*\"|Environment=\"EINK_DEVICE_TOKEN=$DEVICE_TOKEN\"|" "$TEMP_SERVICE"
+sed -i "s|WorkingDirectory=.*|WorkingDirectory=$EINK_DIR|" "$TEMP_SERVICE"
+sed -i "s|ExecStart=.*|ExecStart=/usr/bin/python3 $EINK_DIR/eink_service.py|" "$TEMP_SERVICE"
+sed -i "s|^User=.*|User=$CURRENT_USER|" "$TEMP_SERVICE"
+
+# Copy to systemd
+sudo cp "$TEMP_SERVICE" /etc/systemd/system/eink.service
+rm "$TEMP_SERVICE"
+sudo systemctl daemon-reload
+
+echo "Service file installed with:"
+echo "  User: $CURRENT_USER"
+echo "  WorkingDirectory: $EINK_DIR"
+echo "  Device Token: ${DEVICE_TOKEN:0:8}..."
 
 echo
 echo "Step 7: Starting service..."
