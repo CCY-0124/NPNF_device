@@ -11,7 +11,7 @@ echo
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then 
-   echo "Please do not run as root. Run as pi user."
+   echo "Please do not run as root. Run as regular user."
    exit 1
 fi
 
@@ -29,9 +29,23 @@ if ! command -v python3 &> /dev/null; then
     sudo apt install -y python3 python3-pip
 fi
 
-# Check pip packages
-echo "Installing Python packages..."
-pip3 install --user Pillow requests
+# Install Python packages using apt (system packages)
+echo "Installing Python packages via apt..."
+sudo apt update
+sudo apt install -y python3-pil python3-requests python3-rpi.gpio || {
+    echo "Warning: Some packages not available via apt, trying pip with --break-system-packages..."
+    pip3 install --user --break-system-packages Pillow requests RPi.GPIO || {
+        echo "Error: Failed to install Python packages"
+        exit 1
+    }
+}
+
+# Verify packages are installed
+echo "Verifying Python packages..."
+python3 -c "import PIL; import requests; print('PIL and requests: OK')" || {
+    echo "Error: Failed to import required packages"
+    exit 1
+}
 
 # Check Waveshare library
 if [ ! -d "$HOME/e-Paper" ]; then
@@ -39,8 +53,19 @@ if [ ! -d "$HOME/e-Paper" ]; then
     cd ~
     git clone https://github.com/waveshare/e-Paper.git
     cd e-Paper/RaspberryPi_JetsonNano/python
-    sudo python3 setup.py install
+    # Install without dependencies to avoid Jetson.GPIO issue
+    sudo python3 setup.py install --no-deps || {
+        echo "Warning: setup.py install failed, trying alternative method..."
+        # Alternative: manually copy library
+        PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+        sudo mkdir -p "/usr/local/lib/python3.${PYTHON_VERSION#*.}/dist-packages/waveshare_epd"
+        sudo cp -r lib/waveshare_epd/* "/usr/local/lib/python3.${PYTHON_VERSION#*.}/dist-packages/waveshare_epd/"
+        sudo touch "/usr/local/lib/python3.${PYTHON_VERSION#*.}/dist-packages/waveshare_epd/__init__.py"
+    }
     cd ~
+else
+    echo "Waveshare library directory already exists, skipping clone."
+    echo "If you need to reinstall, run: cd ~/e-Paper/RaspberryPi_JetsonNano/python && sudo python3 setup.py install --no-deps"
 fi
 
 echo
@@ -99,10 +124,10 @@ echo "-----------------------------------"
 export EINK_DEVICE_TOKEN="$DEVICE_TOKEN"
 
 echo "Testing API connection..."
-if python3 test_api_connection.py; then
+if [ -f "test_api_connection.py" ] && python3 test_api_connection.py; then
     echo "API connection test passed!"
 else
-    echo "Warning: API connection test failed. Continue anyway? (y/n)"
+    echo "Warning: API connection test failed or test file not found. Continue anyway? (y/n)"
     read -r response
     if [[ ! "$response" =~ ^[Yy]$ ]]; then
         exit 1
@@ -111,10 +136,10 @@ fi
 
 echo
 echo "Testing renderers..."
-if python3 test_renderers.py; then
+if [ -f "test_renderers.py" ] && python3 test_renderers.py; then
     echo "Renderer test passed!"
 else
-    echo "Warning: Renderer test failed. Continue anyway? (y/n)"
+    echo "Warning: Renderer test failed or test file not found. Continue anyway? (y/n)"
     read -r response
     if [[ ! "$response" =~ ^[Yy]$ ]]; then
         exit 1
@@ -168,6 +193,8 @@ echo "  Check status:     sudo systemctl status $SERVICE_NAME"
 echo "  Restart service:  sudo systemctl restart $SERVICE_NAME"
 echo "  Stop service:     sudo systemctl stop $SERVICE_NAME"
 echo
+
+
 
 
 

@@ -42,10 +42,14 @@ echo
 echo "Step 2: Updating Python dependencies..."
 echo "-----------------------------------"
 
-# Update pip packages
-echo "Updating Python packages..."
-pip3 install --user --upgrade Pillow requests || {
-    echo "Warning: Failed to update some packages"
+# Update system packages
+echo "Updating Python packages via apt..."
+sudo apt update
+sudo apt install -y --upgrade python3-pil python3-requests python3-rpi.gpio || {
+    echo "Warning: Failed to update via apt, trying pip with --break-system-packages..."
+    pip3 install --user --upgrade --break-system-packages Pillow requests RPi.GPIO || {
+        echo "Warning: Failed to update some packages"
+    }
 }
 
 # Check Waveshare library
@@ -56,7 +60,7 @@ if [ -d "$HOME/e-Paper" ]; then
         echo "Warning: Failed to update Waveshare library"
     }
     cd "$HOME/e-Paper/RaspberryPi_JetsonNano/python"
-    sudo python3 setup.py install || {
+    sudo python3 setup.py install --no-deps || {
         echo "Warning: Failed to reinstall Waveshare library"
     }
     cd "$EINK_DIR"
@@ -68,7 +72,7 @@ else
     }
     if [ -d "$HOME/e-Paper" ]; then
         cd "$HOME/e-Paper/RaspberryPi_JetsonNano/python"
-        sudo python3 setup.py install || {
+        sudo python3 setup.py install --no-deps || {
             echo "Warning: Failed to install Waveshare library"
         }
     fi
@@ -114,6 +118,8 @@ echo "  View logs:        sudo journalctl -u eink.service -f"
 echo "  Check status:     sudo systemctl status eink.service"
 echo "  Restart service:  sudo systemctl restart eink.service"
 echo
+
+
 
 
 
