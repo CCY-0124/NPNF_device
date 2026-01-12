@@ -15,9 +15,23 @@ if [ "$EUID" -eq 0 ]; then
    exit 1
 fi
 
-# Configuration
-EINK_DIR="$HOME/eink"
+# Configuration - detect current directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CURRENT_DIR="$(pwd)"
+
+# Use current directory if script is run from project directory, otherwise use script directory
+if [ -f "$CURRENT_DIR/api_client.py" ] || [ -f "$CURRENT_DIR/eink_service.py" ]; then
+    EINK_DIR="$CURRENT_DIR"
+else
+    EINK_DIR="$SCRIPT_DIR"
+fi
+
+# Get current user
+CURRENT_USER="$USER"
 SERVICE_NAME="eink.service"
+
+echo "Detected working directory: $EINK_DIR"
+echo "Detected user: $CURRENT_USER"
 
 echo "Step 1: Checking dependencies..."
 echo "-----------------------------------"
@@ -72,20 +86,28 @@ echo
 echo "Step 2: Setting up directory..."
 echo "-----------------------------------"
 
-# Create directory
-mkdir -p "$EINK_DIR"
+# Change to working directory
 cd "$EINK_DIR"
 
 echo "Working directory: $EINK_DIR"
 echo
-echo "Please ensure all Python files are in this directory:"
-echo "  - api_client.py"
-echo "  - eink_service.py"
-echo "  - renderers.py"
-echo "  - render_*.py (all renderer files)"
-echo
 
-read -p "Press Enter when files are ready..."
+# Check for required files
+MISSING_FILES=()
+[ ! -f "api_client.py" ] && MISSING_FILES+=("api_client.py")
+[ ! -f "eink_service.py" ] && MISSING_FILES+=("eink_service.py")
+[ ! -f "renderers/renderers.py" ] && [ ! -f "renderers.py" ] && MISSING_FILES+=("renderers.py or renderers/renderers.py")
+
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    echo "Warning: Some required files are missing:"
+    for file in "${MISSING_FILES[@]}"; do
+        echo "  - $file"
+    done
+    echo
+    read -p "Press Enter to continue anyway, or Ctrl+C to cancel..."
+else
+    echo "Required files found in current directory."
+fi
 
 echo
 echo "Step 3: Configuring API..."
@@ -152,17 +174,28 @@ echo "-----------------------------------"
 
 # Update service file with device token
 if [ -f "eink.service" ]; then
-    sed -i "s|Environment=\"EINK_DEVICE_TOKEN=.*\"|Environment=\"EINK_DEVICE_TOKEN=$DEVICE_TOKEN\"|" eink.service
-    sed -i "s|WorkingDirectory=.*|WorkingDirectory=$EINK_DIR|" eink.service
-    sed -i "s|ExecStart=.*|ExecStart=/usr/bin/python3 $EINK_DIR/eink_service.py|" eink.service
+    # Create a temporary service file with updated values
+    TEMP_SERVICE=$(mktemp)
+    cp eink.service "$TEMP_SERVICE"
+    
+    # Update service file
+    sed -i "s|Environment=\"EINK_DEVICE_TOKEN=.*\"|Environment=\"EINK_DEVICE_TOKEN=$DEVICE_TOKEN\"|" "$TEMP_SERVICE"
+    sed -i "s|WorkingDirectory=.*|WorkingDirectory=$EINK_DIR|" "$TEMP_SERVICE"
+    sed -i "s|ExecStart=.*|ExecStart=/usr/bin/python3 $EINK_DIR/eink_service.py|" "$TEMP_SERVICE"
+    sed -i "s|^User=.*|User=$CURRENT_USER|" "$TEMP_SERVICE"
     
     # Copy to systemd
-    sudo cp eink.service /etc/systemd/system/
+    sudo cp "$TEMP_SERVICE" /etc/systemd/system/eink.service
+    rm "$TEMP_SERVICE"
     sudo systemctl daemon-reload
     
-    echo "Service file installed"
+    echo "Service file installed with:"
+    echo "  User: $CURRENT_USER"
+    echo "  WorkingDirectory: $EINK_DIR"
+    echo "  Device Token: ${DEVICE_TOKEN:0:8}..."
 else
-    echo "Error: eink.service not found!"
+    echo "Error: eink.service not found in $EINK_DIR!"
+    echo "Please make sure eink.service is in the project directory."
     exit 1
 fi
 
